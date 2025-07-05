@@ -40,7 +40,7 @@ const Pile = ({cell,pieceId,player,color,onPress}) => {
     () => player === currentPlayerCellSelection,
     [player,currentPlayerCellSelection],
   );
-  const  isCellEnabled = useMemo (
+  const  isCellEnabled = useMemo(
     () => player === currentPlayerCellSelection,
     [player, currentPlayerCellSelection]
 
@@ -63,12 +63,12 @@ const Pile = ({cell,pieceId,player,color,onPress}) => {
       case Colors.yellow:
         return PileYellow;
       default:
-        return PileGreen; 
+        return PileGreen;
     }
   }, [color]);
 
 
-  useEffect (() => {
+  useEffect(() => {
     const rotateAnimation = Animated.loop(
       Animated.timing(rotation, {
         toValue: 1,
@@ -77,7 +77,7 @@ const Pile = ({cell,pieceId,player,color,onPress}) => {
         useNativeDriver: true,
       }),
 
-  )
+  );
     rotateAnimation.start();
 
   return () => {
@@ -85,7 +85,7 @@ const Pile = ({cell,pieceId,player,color,onPress}) => {
   };
 }, [rotation]);
 
-const rotateInterpolate = useMemo(() => 
+const rotateInterpolate = useMemo(() =>
   rotation.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
@@ -97,15 +97,15 @@ const rotateInterpolate = useMemo(() =>
 
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
     style={styles.container}
     activeOpacity={0.5}
     disabled={!cell ? isCellEnabled && isForwardable() : isPieceEnabled}
     onPress={onPress}>
-      
-      
-      
-      
+
+
+
+
       <View style= {styles.hollowCircle}>
         {(cell ? isCellEnabled && isForwardable() : isPieceEnabled) && (
           <View style={styles.dashedCircleContainer}>
@@ -138,10 +138,10 @@ const rotateInterpolate = useMemo(() =>
       />
      </TouchableOpacity>
 
-   
 
-  )
-}
+
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -161,12 +161,12 @@ const styles = StyleSheet.create({
     alignItems:'center',
   },
   dashedCircleContainer: {
-    
+
     position:'absolute',
     width: 25,
     height: 25,
     backgroundColor: 'white',
-    
+
     justifyContent:'center',
     alignItems:'center',
     top:-8,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     height: 25,
     alignSelf:'center',
     justifyContent:'center',
-   
+
   },
   dashedCircleImage: {
     width: 20,

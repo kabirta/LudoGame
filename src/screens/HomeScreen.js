@@ -108,7 +108,7 @@ const HomeScreen = () => {
       </View>
 
       <View style={styles.buttonContainer}>
-        { currentPositions.length!==0 && (
+        { currentPositions.length !== 0 && (
           renderButton('RESUME', handleResumePress)
         )}
         {renderButton('NEW GAME', handleNewGamePress)}

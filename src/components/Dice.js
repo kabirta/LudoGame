@@ -36,13 +36,13 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
   const diceNo = useSelector(selectDiceNo);
   const playerPieces = useSelector(
     state => state.game[`player${currentPlayerChance}`],);
-  
+
 
   const pileIcon = BackgroundImage.GetImage(color);
   const diceIcon = BackgroundImage.GetImage(diceNo);
   const delay = ms=> new Promise(resolve => setTimeout(resolve, ms));
-  
-  
+
+
   const arrowAnim = useRef(new Animated.Value(0)).current;
   const [diceRolling, setDiceRolling] = useState(false);
 
@@ -69,7 +69,7 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
   }, [currentPlayerChance, isDiceRolled, arrowAnim]);
 
   const handleDicePress = () => {
-    console.log("Dice Pressed!");
+    console.log('Dice Pressed!');
     setDiceRolling(true);
     setTimeout(() => setDiceRolling(false), 1000);
   };
@@ -82,7 +82,7 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
           colors={['#0052be', '#5f9fcb', '#97c6c9']}
           start={{ x: 0, y: 0.5 }}
           end={{x:1, y:0.5}}>
-            
+
           <View style={styles.pileContainer}>
             <Image source={pileIcon} style={styles.pileIcon} />
           </View>
@@ -109,7 +109,7 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
               </TouchableOpacity>
             )}
             </>
-            ):null}
+            ) : null}
           </View>
         </LinearGradient>
       </View>
@@ -118,7 +118,7 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
         <Animated.View style={{ transform: [{ translateX: arrowAnim }] }}>
           <Image source={Arrow} style={{ width: 40, height: 30 }} />
         </Animated.View>
-      ):null}
+      ) : null}
 
       {currentPlayerChance === player && diceRolling ? (
         <LottieView
@@ -129,7 +129,7 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
           cacheComposition
           hardwareAccelerationAndroid
         />
-      ):null}
+      ) : null}
     </View>
   );
 });
@@ -198,8 +198,8 @@ const styles = StyleSheet.create({
    borderRadius:10,
    borderLeftWidth:3,
   borderColor: '#aac8ab',
-  
-    
+
+
   },
 });
 

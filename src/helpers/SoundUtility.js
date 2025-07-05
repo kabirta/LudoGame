@@ -5,7 +5,7 @@ export const playSound = (soundName, loop = false) => {
     const soundPath = getSoundPath(soundName);
     SoundPlayer.playAsset(soundPath);
   } catch (e) {
-    console.log(`cannot play the sound file`, e);
+    console.log('cannot play the sound file', e);
   }
 };
 

@@ -99,13 +99,13 @@ const WinModal = ({ winner }) => {
       style={styles.girlAnimation}
     />
   </Modal>
-    
+
   );
 };
 
 const styles = StyleSheet.create({
   modal: {
-    
+
     justifyContent: 'center',
     alignItems: 'center',
   },

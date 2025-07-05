@@ -12,15 +12,15 @@ import {
   deviceWidth,
 } from '../constants/Scaling';
 
-const Wrapper = ({ children, style }) => {  
+const Wrapper = ({ children, style }) => {
   return (
     <ImageBackground
-      source={BG} 
-      resizeMode="cover"  
-      style={styles.background}  
+      source={BG}
+      resizeMode="cover"
+      style={styles.background}
     >
       <SafeAreaView style={styles.safeArea}>
-        {children}  
+        {children}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -28,9 +28,9 @@ const Wrapper = ({ children, style }) => {
 
 const styles = StyleSheet.create({
   background: {
-    flex: 1, 
-    width: deviceWidth,  
-    height: deviceHeight,  
+    flex: 1,
+    width: deviceWidth,
+    height: deviceHeight,
   },
   safeArea: {
     flex: 1,

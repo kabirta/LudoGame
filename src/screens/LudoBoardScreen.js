@@ -101,14 +101,14 @@ const LudoBoardScreen = () => {
         </TouchableOpacity>
 
       <View style = {styles.container}>
-        
-        <View 
+
+        <View
         style={styles.flexRow}
-        pointerEvents={isDiceTouch ? 'none':'auto'}>
+        pointerEvents={isDiceTouch ? 'none' : 'auto'}>
           <Dice color ={Colors.green} player={2} data={player2} />
           <Dice color ={Colors.yellow} player={3} rotate data={player3} />
           </View>
-       
+
        <View style={styles.ludoBoard}>
         <View style={styles.plotContainer}>
           <Pocket color={Colors.green} player={2} data={player2} />
@@ -116,25 +116,25 @@ const LudoBoardScreen = () => {
           <Pocket color={Colors.yellow} player={3} data={player3} />
         </View>
 
-         
+
 
         <View style={styles.pathContainer}>
           <HorizontalPath cells={Plot1Data} color={Colors.red} />
           <HorizontalPath cells={Plot3Data} color={Colors.blue} />
         </View>
-        
-        
+
+
         <View style={styles.plotContainer}>
           <Pocket color={Colors.blue} player={4} data={player4} />
           <VerticalPath cells={Plot4Data} color={Colors.red}  />
           <Pocket color={Colors.red} player={1} data={player1} />
         </View>
        </View>
-       
-       
+
+
        <View
        style={styles.flexRow}
-        pointerEvents={isDiceTouch ? 'none':'auto'}>
+        pointerEvents={isDiceTouch ? 'none' : 'auto'}>
           <Dice color ={Colors.red} player={1} data={player1} />
           <Dice color ={Colors.blue} rotate player={4}  data={player4} />
        </View>
@@ -143,7 +143,7 @@ const LudoBoardScreen = () => {
 
 
   </View>
-      
+
 
 
 
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     justifyContent:'center',
     height:deviceHeight * 0.5,
     width:deviceWidth,
-    
+
   },
   ludoBoard: {
     width: '100%',
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   },
   menuIcon: {
     position: 'absolute',
-    top: -150,   
+    top: -150,
     zIndex: 20,
   },
   menuIconImage: {
@@ -208,10 +208,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '40%',
     justifyContent:'space-between',
-    
+
     flexDirection: 'row',
     backgroundColor: '#ccc',
-    
+
   },
   pathContainer:{
     flexDirection:'row',

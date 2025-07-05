@@ -16,7 +16,7 @@ const reduxStorage = {
   removeItem: (key) => {
     storage.delete(key);
     return Promise.resolve();
-  }
+  },
 };
 
 export default reduxStorage;

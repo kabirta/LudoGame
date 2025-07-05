@@ -21,11 +21,11 @@ const config = {
         inlineRequires: true,
       },
     }),
-    
+
   },
   resolver: {
     assetExts: assetExts,
-    sourceExts: [...sourceExts, ],
+    sourceExts: [...sourceExts ],
   },
 };
 

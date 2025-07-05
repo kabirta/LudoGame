@@ -35,12 +35,12 @@ const MenuModal = ({ visible, onPressHide }) => {
   return (
     <Modal
       style={styles.bottomModalView}
-      isVisible={visible}  
+      isVisible={visible}
       backdropColor="black"
       backdropOpacity={0.8}
       onBackdropPress={onPressHide}
-      animationIn='zoomIn'
-      animationOut='zoomOut'
+      animationIn="zoomIn"
+      animationOut="zoomOut"
       onBackButtonPress={onPressHide}
     >
       <View style={styles.modelContainer}>
@@ -49,7 +49,7 @@ const MenuModal = ({ visible, onPressHide }) => {
             colors={['#0f0c29', '#302b63', '#24243e']}
             style={styles.mondalContainer}
           >
-            <View style={styles.subView}>  
+            <View style={styles.subView}>
               <GradientButton title="RESUME" onPress={onPressHide} />
               <GradientButton title="NEW GAME" onPress={handleNewGame} />
               <GradientButton title="HOME" onPress={handleHome} />
@@ -66,13 +66,13 @@ const styles = StyleSheet.create({
     justifyContent:'center',
     width: '95%',
     alignItems: 'center',
-   
+
   },
   gradientContainer: {
-    
+
     borderRadius: 20,
     overflow: 'hidden',
-    
+
 
     width: '96%',
     borderColor: 'gold',
@@ -91,8 +91,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems:'center',
   },
-  
-  
+
+
 });
 
 export default MenuModal;

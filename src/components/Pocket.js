@@ -13,7 +13,7 @@ const Pocket = ({ color, player, data }) => {
   const handlePress = async value => {};
 
   return (
-    <View style={[styles.container, { backgroundColor: color }]}> 
+    <View style={[styles.container, { backgroundColor: color }]}>
       <View style={styles.childFrame}>
         <View style={styles.flexRow}>
           <Plot

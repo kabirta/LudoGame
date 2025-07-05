@@ -25,7 +25,7 @@ const VerticalPath = ({ cells, color }) => {
         justifyContent: 'center',
         width: '100%',
         height: '100%',
-        
+
       }}>
         <View style={{ flexDirection: 'column', width: '100%', height: '100%' }}>
             {groups.map((group, groupIndex) => (
@@ -37,8 +37,8 @@ const VerticalPath = ({ cells, color }) => {
                     height: '16.7%',
                   }}>
                     {group.map((id, index) => (
-                        <Cell 
-                        key={`cell-${id}`} 
+                        <Cell
+                        key={`cell-${id}`}
                         id={id}
                         color={color} />
                     ))}

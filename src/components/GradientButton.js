@@ -12,13 +12,13 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 import {playSound} from '../helpers/SoundUtility';
 
-const iconsSize = RFValue(20); 
+const iconsSize = RFValue(20);
 
 const GradientButton = ({ title, onPress, iconColor = '#d5be3e' }) => {
   return (
     <View style={styles.maincontainer}>
-      <TouchableOpacity activeOpacity={0.8} 
-      style={styles.btnContainer} 
+      <TouchableOpacity activeOpacity={0.8}
+      style={styles.btnContainer}
       onPress={() =>{
         playSound('ui');
         onPress();
@@ -31,13 +31,13 @@ const GradientButton = ({ title, onPress, iconColor = '#d5be3e' }) => {
   end={{ x: 0, y: 1 }}
 >
   {
-    title === "RESUME" ? (
+    title === 'RESUME' ? (
       <MaterialIcons name="play-arrow" size={iconsSize} color={iconColor} />
-    ) : title === "NEW GAME" ? (
+    ) : title === 'NEW GAME' ? (
       <MaterialIcons name="play-circle" size={iconsSize} color={iconColor} />
-    ) : title === "VS CPU" ? (
+    ) : title === 'VS CPU' ? (
       <MaterialIcons name="airplay" size={iconsSize} color={iconColor} />
-    ) : title === "HOME" ? (
+    ) : title === 'HOME' ? (
       <MaterialIcons name="home" size={iconsSize} color={iconColor} />
     ) : (
       <MaterialIcons name="person-4" size={iconsSize} color={iconColor} />
@@ -96,6 +96,6 @@ const styles = StyleSheet.create({
       alignItems: 'center',
     },
   });
-  
-  
+
+
 export default GradientButton;

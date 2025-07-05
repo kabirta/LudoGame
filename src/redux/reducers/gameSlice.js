@@ -8,7 +8,7 @@ export const gameSlice = createSlice({
   reducers: {
     resetGame: () => initialState,
     announceWinners: (state,action) => {
-      state.winner= action.payload;
+      state.winner = action.payload;
     },
   },
 });
