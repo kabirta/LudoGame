@@ -39,7 +39,7 @@ const Cell = ({ id, color }) => {
 
   const handlePress = useCallback((playerNo, pieceId) => {
     // Example: dispatch(movePiece({ playerNo, pieceId, position: id }));
-  }, [dispatch, id]);
+  }, []);
 
   return (
     <View

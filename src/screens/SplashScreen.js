@@ -39,7 +39,7 @@ const SplashScreen = () => {
         return () => {
             breathingAnimation.stop();
         };
-    }, [isStop]);
+    }, [isStop, scale]);
 
     return (
         <Wrapper>

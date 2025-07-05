@@ -24,6 +24,7 @@ import {
   resetGame,
 } from '../redux/reducers/gameSlice';
 import GradientButton from './GradientButton';
+import Pile from './Pile';
 
 
 const WinModal = ({ winner }) => {

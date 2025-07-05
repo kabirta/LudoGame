@@ -66,7 +66,7 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
       ).start();
     };
     animateArrow();
-  }, [currentPlayerChance, isDiceRolled]);
+  }, [currentPlayerChance, isDiceRolled, arrowAnim]);
 
   const handleDicePress = () => {
     console.log("Dice Pressed!");

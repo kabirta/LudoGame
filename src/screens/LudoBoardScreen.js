@@ -91,7 +91,7 @@ const LudoBoardScreen = () => {
         clearTimeout(timeout);
       };
     }
-  }, [isFocused]);
+  }, [isFocused, opacity]);
 
   return (
     <Wrapper>
