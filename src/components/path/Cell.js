@@ -11,7 +11,6 @@ import {
 import {RFValue} from 'react-native-responsive-fontsize';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {
-  useDispatch,
   useSelector,
 } from 'react-redux';
 

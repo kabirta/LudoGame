@@ -25,7 +25,6 @@ import PileYellow from '../assets/images/piles/yellow.png';
 import {
   selectCellSelection,
   selectDiceNo,
-  selectPocketPileSelection,
 } from '../redux/reducers/gameSelectors';
 
 const Pile = ({cell,pieceId,player,color,onPress}) => {
