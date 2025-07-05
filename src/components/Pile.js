@@ -30,7 +30,6 @@ import {
 
 const Pile = ({cell,pieceId,player,color,onPress}) => {
   const rotation = useRef(new Animated.Value(0)).current;
-  const currentPlayerPileSelection = useSelector(selectPocketPileSelection);
   const currentPlayerCellSelection = useSelector(selectCellSelection);
   const diceNo = useSelector(selectDiceNo);
   const playerPieces = useSelector(state => state.game[`player${player}`]);

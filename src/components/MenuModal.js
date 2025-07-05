@@ -22,10 +22,6 @@ const MenuModal = ({ visible, onPressHide }) => {
     onPressHide();
   }, [dispatch, onPressHide]);
 
-  const handleRestartGame = useCallback(() => {
-    goBack();
-    onPressHide();
-  }, [onPressHide]);
 
   const handleHome = useCallback(() => {
     goBack(); // Navigate to home screen or main menu

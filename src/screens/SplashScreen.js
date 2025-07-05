@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Image, Animated, ActivityIndicator } from 'react-native';
+import { StyleSheet, Image, Animated, ActivityIndicator } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { deviceHeight, deviceWidth } from '../constants/Scaling';
 import Wrapper from '../components/Wrapper';

@@ -25,7 +25,6 @@ import {selectCurrentPositions} from '../../redux/reducers/gameSelectors';
 import Pile from '../Pile';
 
 const Cell = ({ id, color }) => {
-  const dispatch = useDispatch();
   const plottedPieces = useSelector(selectCurrentPositions);
 
   const isSafeSpot = useMemo(() => SafeSpots.includes(id), [id]);

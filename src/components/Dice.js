@@ -29,18 +29,12 @@ import {
 } from '../redux/reducers/gameSelectors';
 
 const Dice = React.memo(({ color, rotate, player, data }) => {
-  const dispatch = useDispatch();
-
   const currentPlayerChance = useSelector(selectCurrentPlayerChance);
   const isDiceRolled = useSelector(selectDiceRolled);
   const diceNo = useSelector(selectDiceNo);
-  const playerPieces = useSelector(
-    state => state.game[`player${currentPlayerChance}`],);
-
 
   const pileIcon = BackgroundImage.GetImage(color);
   const diceIcon = BackgroundImage.GetImage(diceNo);
-  const delay = ms=> new Promise(resolve => setTimeout(resolve, ms));
 
 
   const arrowAnim = useRef(new Animated.Value(0)).current;
@@ -97,7 +91,7 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
           end={{ x: 1, y: 0.5 }}
         >
           <View style={styles.diceContainer}>
-            {currentPlayerChance == player ? (
+            {currentPlayerChance === player ? (
               <>
               {diceRolling ? null : (
               <TouchableOpacity

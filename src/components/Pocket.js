@@ -4,12 +4,9 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import {useDispatch} from 'react-redux';
-
 import {Colors} from '../constants/Colors';
 
 const Pocket = ({ color, player, data }) => {
-  const dispatch = useDispatch();
   const handlePress = async value => {};
 
   return (
