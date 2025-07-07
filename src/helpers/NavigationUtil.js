@@ -1,5 +1,12 @@
-import {createNavigationContainerRef} from '@react-navigation/native';
-import {CommonActions} from '@react-navigation/native';
+import {StyleSheet} from 'react-native';
+import {Colors} from 'react-native/Libraries/NewAppScreen';
+
+import {
+  CommonActions,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
+
+import {deviceHeight} from '../constants/Scaling';
 
 export const navigationRef = createNavigationContainerRef();
 
@@ -39,3 +46,28 @@ export async function push(routeName, params) {
 export async function prepareNavigation() {
   await navigationRef.isReady();
 }
+const styles = StyleSheet.create({
+  mainContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 0.8,
+    width: '20%',
+    height: '100%',
+    overflow: 'hidden',
+    backgroundColor: 'white',
+    borderColor: Colors.borderColor,
+  },
+  LottieView: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    zIndex: 1,
+  },
+  container: {
+    width: deviceHeight * 0.063,
+    height: deviceHeight * 0.032,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+  },
+});

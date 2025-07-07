@@ -21,11 +21,11 @@ const config = {
         inlineRequires: true,
       },
     }),
-
+    babelTransformerPath: require.resolve('react-native-svg-transformer'),
   },
   resolver: {
-    assetExts: assetExts,
-    sourceExts: [...sourceExts ],
+    assetExts: assetExts.filter(ext => ext !== 'svg'),
+    sourceExts: [...sourceExts, 'svg'],
   },
 };
 

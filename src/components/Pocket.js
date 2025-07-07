@@ -4,10 +4,50 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import {useDispatch} from 'react-redux';
+
 import {Colors} from '../constants/Colors';
+import {startingPoints} from '../helpers/PlotData';
+import {
+  unfreezeDice,
+  updateplayerPieceValue,
+} from '../redux/reducers/gameSlice';
+import Pile from './Pile';
 
 const Pocket = ({ color, player, data }) => {
-  const handlePress = async value => {};
+
+  const dispatch = useDispatch();
+
+
+
+
+  const handlePress = async value => {
+    let playerNo =value?.id?.slice(0, 1);
+    switch (playerNo) {
+      case 'A':
+        playerNo = 'player1';
+        break;
+      case 'B':
+        playerNo = 'player2';
+        break;
+      case 'C':
+        playerNo = 'player3';
+        break;
+      default:
+        playerNo = 'player4';
+        break;
+    }
+    dispatch(
+      updateplayerPieceValue({
+        playerNo: playerNo,
+        pieceId: value.id,
+        pos: startingPoints[parseInt(playerNo.match(/\d+/)[0], 10) - 1],
+        travelCount: 1,
+      }),
+    )
+    dispatch(unfreezeDice());
+
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: color }]}>
@@ -15,6 +55,31 @@ const Pocket = ({ color, player, data }) => {
         <View style={styles.flexRow}>
           <Plot
             pieceNo={0}
+            player={player}
+            color={color}
+            data={data}
+            handlePress={handlePress}
+          />
+          <Plot
+            pieceNo={1}
+            player={player}
+            color={color}
+            data={data}
+            handlePress={handlePress}
+          />
+        </View>
+
+        
+        <View style={[styles.flexRow, {marginTop: 20}]}>
+          <Plot
+            pieceNo={2}
+            player={player}
+            color={color}
+            data={data}
+            handlePress={handlePress}
+          />
+          <Plot
+            pieceNo={3}
             player={player}
             color={color}
             data={data}
@@ -29,7 +94,17 @@ const Pocket = ({ color, player, data }) => {
 const Plot = ({ pieceNo, player, color, data, handlePress }) => {
   return (
     <View>
-      <View style={[styles.container, { backgroundColor: color }]} />
+      <View style={[styles.plot, { backgroundColor: color }]} />
+      {data && data[pieceNo]?.pos===0 && (
+        <Pile 
+        player={player}
+        color={color}
+        onPress={() => {
+          
+          handlePress(data[pieceNo]);
+        }}
+      />
+      )}
     </View>
   );
 };

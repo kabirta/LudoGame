@@ -19,6 +19,7 @@ import {useIsFocused} from '@react-navigation/native';
 import MenuIcon from '../assets/images/menu.png';
 import StartGame from '../assets/images/start.png';
 import Dice from '../components/Dice';
+import FourTriangles from '../components/FourTriangles';
 import MenuModal from '../components/MenuModal';
 import HorizontalPath from '../components/path/HorizontalPath';
 import VerticalPath from '../components/path/VerticalPath';
@@ -30,7 +31,12 @@ import {
   deviceHeight,
   deviceWidth,
 } from '../constants/Scaling';
-import {Plot1Data, Plot2Data, Plot3Data, Plot4Data} from '../helpers/PlotData';
+import {
+  Plot1Data,
+  Plot2Data,
+  Plot3Data,
+  Plot4Data,
+} from '../helpers/PlotData';
 import {playSound} from '../helpers/SoundUtility';
 import {
   selectDiceTouch,
@@ -101,13 +107,14 @@ const LudoBoardScreen = () => {
         </TouchableOpacity>
 
       <View style = {styles.container}>
-
         <View
-        style={styles.flexRow}
-        pointerEvents={isDiceTouch ? 'none' : 'auto'}>
+           style={styles.flexRow}
+          pointerEvents={isDiceTouch ? 'none' : 'auto'}>
           <Dice color ={Colors.green} player={2} data={player2} />
           <Dice color ={Colors.yellow} player={3} rotate data={player3} />
           </View>
+
+
 
        <View style={styles.ludoBoard}>
         <View style={styles.plotContainer}>
@@ -119,15 +126,21 @@ const LudoBoardScreen = () => {
 
 
         <View style={styles.pathContainer}>
-          <HorizontalPath cells={Plot1Data} color={Colors.red} />
+          <HorizontalPath cells={Plot1Data} color={Colors.green} />
+          <FourTriangles
+          player1={player1}
+          player2={player2}
+          player3={player3}
+          player4={player4}
+          />
           <HorizontalPath cells={Plot3Data} color={Colors.blue} />
         </View>
 
 
         <View style={styles.plotContainer}>
-          <Pocket color={Colors.blue} player={4} data={player4} />
-          <VerticalPath cells={Plot4Data} color={Colors.red}  />
           <Pocket color={Colors.red} player={1} data={player1} />
+          <VerticalPath cells={Plot4Data} color={Colors.red}  />
+          <Pocket color={Colors.blue} player={4} data={player4} />
         </View>
        </View>
 
@@ -188,11 +201,12 @@ const styles = StyleSheet.create({
     height: '100%',
     alignSelf: 'center',
     padding: 10,
+    
   },
   menuIcon: {
     position: 'absolute',
     top: -150,
-    zIndex: 20,
+    zIndex:20,
   },
   menuIconImage: {
     width: 40,

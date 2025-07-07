@@ -14,29 +14,34 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import {Colors} from 'react-native/Libraries/NewAppScreen';
+import {
+  Circle,
+  Svg,
+} from 'react-native-svg';
 import {useSelector} from 'react-redux';
 
-import dashedCircle from '../assets/images/dashedCircle.png';
 import PileBlue from '../assets/images/piles/blue.png';
 import PileGreen from '../assets/images/piles/green.png';
 import PileRed from '../assets/images/piles/red.png';
 import PileYellow from '../assets/images/piles/yellow.png';
+import {Colors} from '../constants/Colors';
 import {
   selectCellSelection,
   selectDiceNo,
+  selectPocketPileSelection,
 } from '../redux/reducers/gameSelectors';
 
 const Pile = ({cell,pieceId,player,color,onPress}) => {
   const rotation = useRef(new Animated.Value(0)).current;
+  const currentPlayerPileSelection = useSelector(selectPocketPileSelection)
   const currentPlayerCellSelection = useSelector(selectCellSelection);
   const diceNo = useSelector(selectDiceNo);
   const playerPieces = useSelector(state => state.game[`player${player}`]);
 
 
-  const isPieceEnabled = useMemo(
-    () => player === currentPlayerCellSelection,
-    [player,currentPlayerCellSelection],
+  const isPileEnabled = useMemo(
+    () => player === currentPlayerPileSelection,
+    [player, currentPlayerPileSelection],
   );
   const  isCellEnabled = useMemo(
     () => player === currentPlayerCellSelection,
@@ -46,7 +51,7 @@ const Pile = ({cell,pieceId,player,color,onPress}) => {
 
   const isForwardable = useCallback(() => {
     const piece = playerPieces?.find(item => item.id === pieceId);
-    return piece && piece.travelcount + diceNo <= 57;
+    return piece && piece.travelCount + diceNo <= 57;
   }, [playerPieces, pieceId, diceNo]);
 
 
@@ -98,15 +103,15 @@ const rotateInterpolate = useMemo(() =>
     <TouchableOpacity
     style={styles.container}
     activeOpacity={0.5}
-    disabled={!cell ? isCellEnabled && isForwardable() : isPieceEnabled}
+    disabled={!(cell ? isCellEnabled && isForwardable() : isPileEnabled)}
     onPress={onPress}>
 
 
 
 
       <View style= {styles.hollowCircle}>
-        {(cell ? isCellEnabled && isForwardable() : isPieceEnabled) && (
-          <View style={styles.dashedCircleContainer}>
+        {(cell ? isCellEnabled && isForwardable() : isPileEnabled) && (
+          <View style={styles.dashedCircle}>
             <Animated.View
               style={[
                 styles.dashedCircle,
@@ -114,11 +119,12 @@ const rotateInterpolate = useMemo(() =>
                   transform: [{ rotate: rotateInterpolate }],
                 },
               ]}>
-                <Image
-                  source={dashedCircle}
-                  style={styles.dashedCircleImage}
-                />
-
+              <Svg height="18" width="18">
+                <Circle cx="9" cy="9" r="8" stroke="white" strokeWidth="2" 
+                  strokeDasharray="2, 2"
+                  strokeDashoffset='0'
+                  fill="transparent" />
+              </Svg>
             </Animated.View>
           </View>
         )}
@@ -132,7 +138,7 @@ const rotateInterpolate = useMemo(() =>
 
       <Image
         source={getPileImage}
-        style={{ width: 15, height: 15, position: 'absolute', top:-16}}
+        style={{ width: 25, height: 25, position: 'absolute', top:-18}}
       />
      </TouchableOpacity>
 
@@ -159,26 +165,23 @@ const styles = StyleSheet.create({
     alignItems:'center',
   },
   dashedCircleContainer: {
-
     position:'absolute',
     width: 25,
     height: 25,
-    backgroundColor: 'white',
-
-    justifyContent:'center',
     alignItems:'center',
+    justifyContent:'center',
     top:-8,
   },
   dashedCircle: {
-    width: 25,
-    height: 25,
+    width: 30,
+    height: 30,
     alignSelf:'center',
     justifyContent:'center',
 
   },
   dashedCircleImage: {
-    width: 20,
-    height: 20,
+    width: 19,
+    height: 19,
     resizeMode: 'contain',
     borderRadius: 50,
     borderWidth: 4,

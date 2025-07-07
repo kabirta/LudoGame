@@ -11,6 +11,7 @@ import {
 import {RFValue} from 'react-native-responsive-fontsize';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {
+  useDispatch,
   useSelector,
 } from 'react-redux';
 
@@ -20,10 +21,14 @@ import {
   SafeSpots,
   StarSpots,
 } from '../../helpers/PlotData';
+import {handleForwardThunk} from '../../redux/reducers/GameAction';
 import {selectCurrentPositions} from '../../redux/reducers/gameSelectors';
 import Pile from '../Pile';
 
 const Cell = ({ id, color }) => {
+
+
+  const dispatch = useDispatch();
   const plottedPieces = useSelector(selectCurrentPositions);
 
   const isSafeSpot = useMemo(() => SafeSpots.includes(id), [id]);
@@ -36,8 +41,9 @@ const Cell = ({ id, color }) => {
   );
 
   const handlePress = useCallback((playerNo, pieceId) => {
-    // Example: dispatch(movePiece({ playerNo, pieceId, position: id }));
-  }, []);
+    dispatch(handleForwardThunk(playerNo, pieceId, id));
+    
+  }, [dispatch, id]);
 
   return (
     <View
@@ -48,15 +54,14 @@ const Cell = ({ id, color }) => {
     >
       {/* Star Spot Icon */}
       {isStarSpot && (
-        <Ionicons name="star-outline" size={RFValue(16)} color={color} />
+        <Ionicons name="star-outline" size={RFValue(20)} color='grey' />
       )}
 
       {/* Arrow Spot Icon */}
       {isArrowSpot && (
         <Ionicons
           name="arrow-forward-outline"
-          size={RFValue(16)}
-          color="grey"
+          
           style={{
             transform: [
               {
@@ -71,12 +76,15 @@ const Cell = ({ id, color }) => {
               },
             ],
           }}
+          size={RFValue(12)}
+          color={color}
         />
       )}
 
       {/* Render Player Pieces */}
       <View style={styles.pieceContainer}>
-        {piecesAtPosition.map((piece, index) => {
+
+        {piecesAtPosition?.map((piece, index) => {
           const playerLetter = piece.id.slice(0, 1);
           const playerNo =
             playerLetter === 'A'
@@ -88,11 +96,11 @@ const Cell = ({ id, color }) => {
               : 4;
 
           const pieceColor =
-            playerLetter === 'A'
+              piece.id.slice(0, 1) === 'A'
               ? Colors.red
-              : playerLetter === 'B'
+              : piece.id.slice(0, 1) === 'B'
               ? Colors.green
-              : playerLetter === 'C'
+              : piece.id.slice(0, 1) === 'C'
               ? Colors.yellow
               : Colors.blue;
 
@@ -104,14 +112,22 @@ const Cell = ({ id, color }) => {
                 {
                   transform: [
                     {
-                      scale: piecesAtPosition.length === 1 ? 1 : 0.7,
+                      scale: piecesAtPosition?.length === 1 ? 1 : 0.7,
                     },
                     {
                       translateX:
                         piecesAtPosition.length === 1
                           ? 0
                           : index * 2 === 0
-                          ? -5
+                          ? -6
+                          : 6,
+                    },
+                    {
+                      translateY:
+                        piecesAtPosition.length === 1
+                          ? 0
+                          : index < 2 
+                          ? -6
                           : 6,
                     },
                   ],
@@ -144,11 +160,10 @@ const styles = StyleSheet.create({
   },
   pieceContainer: {
     position: 'absolute',
-    top: 2,
+    top: 0,
+    bottom: 0,
     zIndex: 99,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+    
   },
 });
 
