@@ -2,27 +2,14 @@ services:
   - type: web
     name: ludo-backend
     env: node
-    buildCommand: npm install && npm run build
-    startCommand: npm run start:prod
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
     envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DB_HOST
-        value: YOUR_DB_HOST
-      - key: DB_PORT
-        value: 5432
-      - key: DB_USERNAME
+      - key: MONGODB_URI
         fromDatabase:
           name: ludo-db
-          property: user
-      - key: DB_PASSWORD
-        fromDatabase:
-          name: ludo-db
-          property: password
-      - key: DB_NAME
-        fromDatabase:
-          name: ludo-db
-          property: database
+          property: connectionString
       - key: TWILIO_ACCOUNT_SID
         sync: false
       - key: TWILIO_AUTH_TOKEN
@@ -33,3 +20,4 @@ services:
 databases:
   - name: ludo-db
     plan: free
+    databaseName: ludo

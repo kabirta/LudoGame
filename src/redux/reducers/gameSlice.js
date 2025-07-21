@@ -50,16 +50,10 @@ export const gameSlice = createSlice({
         piece.pos = pos;
         piece.travelCount = travelCount;
 
-        if (travelCount === 56) {
-          // Set to a special value indicating home
-          piece.pos = -1;  // Set to a special value indicating home
-        }
-
         const currentPositionIndex = state.currentPositions.findIndex(
-          p => p.id === pieceId,
+          p => p.id ===pieceId,
         );
-        if(pos=== 0 || travelCount === 56){
-          // Remove from board when sent home or when reaching victory
+        if(pos=== 0){
           if (currentPositionIndex !== -1) {
             state.currentPositions.splice(currentPositionIndex, 1);
           }

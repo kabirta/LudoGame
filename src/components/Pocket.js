@@ -95,7 +95,7 @@ const Plot = ({ pieceNo, player, color, data, handlePress }) => {
   return (
     <View>
       <View style={[styles.plot, { backgroundColor: color }]} />
-      {data && data[pieceNo]?.pos===1 && (
+      {data && data[pieceNo]?.pos===0 && (
         <Pile 
         player={player}
         color={color}

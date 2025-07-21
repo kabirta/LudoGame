@@ -1,152 +1,192 @@
-import React from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react';
 
+import LottieView from 'lottie-react-native';
 import {
+  Alert,
+  Animated,
   Image,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
+import SoundPlayer from 'react-native-sound-player';
+import {
+  useDispatch,
+  useSelector,
+} from 'react-redux';
 
-import {useNavigation} from '@react-navigation/native';
+import {useIsFocused} from '@react-navigation/native';
+
+import Witch from '../assets/animation/witch.json';
+import Logo from '../assets/images/logo.png';
+import GradientButton from '../components/GradientButton';
+import Wrapper from '../components/Wrapper';
+import {
+  deviceHeight,
+  deviceWidth,
+} from '../constants/Scaling';
+import {navigate} from '../helpers/NavigationUtil';
+import {playSound} from '../helpers/SoundUtility';
+import {selectCurrentPositions} from '../redux/reducers/gameSelectors';
+import {resetGame} from '../redux/reducers/gameSlice';
 
 const HomeScreen = () => {
-  const navigation = useNavigation(); // ✅ hook for navigation
+  const dispatch = useDispatch();
+  const currentPositions = useSelector(selectCurrentPositions);
+  const isFocused = useIsFocused();
 
-  const handleWalletPress = () => {
-    navigation.navigate('WalletScreen'); // ✅ replace with your Wallet route name
-  };
+  const witchAnimation = useRef(new Animated.Value(-deviceWidth)).current;
+  const scalXAnimation = useRef(new Animated.Value(-1)).current;
 
-  const handleLobbyPress = () => {
-    navigation.navigate('LobbyScreen'); // ✅ your Lobby screen
-  };
+  useEffect(() => {
+    const loopAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(witchAnimation, {
+              toValue: deviceWidth * 0.02,
+              duration: 2000,
+              useNativeDriver: true,
+            }),
+          ]),
+        ])
+      ).start();
+    };
+
+    const cleanupAnimation = () => {
+      witchAnimation.stopAnimation();
+      scalXAnimation.stopAnimation();
+    };
+
+    loopAnimation();
+    return cleanupAnimation;
+  }, [witchAnimation, scalXAnimation]);
+
+  useEffect(() => {
+    if (isFocused) {
+      playSound('home');
+    }
+  }, [isFocused]);
+
+  const renderButton = useCallback(
+    (title, onPress) => (
+      <GradientButton key={title} title={title} onPress={onPress} />
+    ),
+    []
+  );
+
+  const startGame = useCallback(async (isNew = false) => {
+    try {
+      SoundPlayer.stop();
+      if (isNew) {
+        dispatch(resetGame());
+      }
+      navigate('LudoBoardScreen');
+      playSound('game_start');
+    } catch (error) {
+      console.error('Error starting game:', error);
+    }
+  }, [dispatch]);
+
+  const handleNewGamePress = useCallback(() => {
+    startGame(true);
+  }, [startGame]);
+
+  const handleResumePress = useCallback(() => {
+    startGame(false);
+  }, [startGame]);
 
   return (
-    <View style={styles.container}>
-
-      {/* ✅ Top Profile Bar */}
-      <View style={styles.profileBar}>
-        <Image
-          source={require('../assets/profile_placeholder.png')}
-          style={styles.avatar}
-        />
-        <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>Mintajul</Text>
-        </View>
-
-        {/* ✅ Balance box is now Touchable */}
-        <TouchableOpacity
-          style={styles.balanceBox}
-          activeOpacity={0.7}
-          onPress={handleWalletPress} // ✅ navigate to wallet
-        >
-          <Text style={styles.balanceLabel}>Total Balance</Text>
-          <Text style={styles.balanceAmount}>₹ 41.5</Text>
-        </TouchableOpacity>
+    <Wrapper style={styles.mainContainer}>
+      <View style={styles.imgContainer}>
+        <Image source={Logo} style={styles.img} />
       </View>
 
-      {/* ✅ Online Status */}
-      <View style={styles.onlineStatus}>
-        <Text style={styles.onlineText}>Online :</Text>
-        <Text style={styles.onlinePing}>72 ms | 0.15 Mb/s</Text>
+      <View style={styles.buttonContainer}>
+        { currentPositions.length !== 0 && (
+          renderButton('RESUME', handleResumePress)
+        )}
+        {renderButton('NEW GAME', handleNewGamePress)}
+        {renderButton('VS CPU', () => Alert.alert('Coming soon! Click New Game'))}
+        {renderButton('2 VS 2', () => Alert.alert('Coming soon! Click New Game'))}
       </View>
 
-      {/* ✅ Ludo Card */}
-      <TouchableOpacity
-        style={styles.card}
-        onPress={handleLobbyPress}
-      >
-        <Image
-          source={require('../assets/images/logo.png')}
-          style={styles.cardIcon}
-        />
-        <Text style={styles.cardTitle}>LUDO</Text>
-        <Text style={styles.cardDescription}>
-          Ludo fun, now just a tap away!
-        </Text>
-      </TouchableOpacity>
+      <Animated.View
+        style={[
+          styles.witchContainer,
+          {
+            transform: [
+              { translateX: witchAnimation },
+              { scaleX: scalXAnimation },
+            ],
+          },
+        ]}>
+        <Pressable
+          onPress={() => {
+            const random = Math.floor(Math.random() * 3) + 1;
+            playSound(`girl${random}`);
+          }}>
+          <LottieView
+            source={Witch}
+            autoPlay
+            loop
+            speed={1}
+            style={styles.Witch}
+          />
+        </Pressable>
+      </Animated.View>
 
-    </View>
+      <Text style={styles.artist}>Created by - Kabir Mondal</Text>
+    </Wrapper>
   );
 };
 
-export default HomeScreen;
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#8e44ad',
-    paddingTop: 50,
-  },
-  profileBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#fff',
-  },
-  profileInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  profileName: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  balanceBox: {
-    backgroundColor: '#27ae60',
-    borderRadius: 8,
-    padding: 8,
-    alignItems: 'center',
-  },
-  balanceLabel: {
-    color: '#fff',
-    fontSize: 12,
-  },
-  balanceAmount: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  onlineStatus: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 20,
-    marginBottom: 10,
-  },
-  onlineText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  onlinePing: {
-    color: '#fff',
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginHorizontal: 20,
-    marginBottom: 15,
-    padding: 20,
-    alignItems: 'center',
-  },
-  cardIcon: {
-    width: 80,
-    height: 80,
-    marginBottom: 10,
-  },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: '#000',
-  },
-  cardDescription: {
-    color: '#333',
-    textAlign: 'center',
-  },
+    mainContainer: {
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+        flex: 1,
+    },
+    imgContainer: {
+        width: deviceWidth * 0.6,
+        height: deviceHeight * 0.2,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    buttonContainer: {
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    img: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'contain',
+    },
+    artist: {
+        position: 'absolute',
+        bottom: 40,
+        color: 'white',
+        fontSize: 14,
+        fontWeight: '800',
+        opacity: 0.5,
+        fontStyle: 'italic',
+    },
+    witchContainer: {
+        position: 'absolute',
+        top: '70%',
+        left: '24%',
+    },
+    Witch: {
+        width: 250,
+        height: 250,
+        transform: [{ rotate: '25deg' }],
+    },
 });
+
+export default HomeScreen;

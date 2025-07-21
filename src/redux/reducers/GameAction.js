@@ -22,7 +22,7 @@ import {
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function checkWinningCriteria(pieces) {
-  return pieces.every(piece => piece.travelCount >= 56);
+  return pieces.every(piece => piece.travelCount >= 57);
 }
 
 export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getState) => {
@@ -40,18 +40,6 @@ export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getSta
   let finalPath = piece.pos;
   const beforePlayerPiece = state.game[`player${playerNo}`].find(item => item.id === id);
   let travelCount = beforePlayerPiece.travelCount;
-
-  // Prevent moving pieces that are already at home
-  if (travelCount >= 56) {
-    dispatch(unfreezeDice());
-    return;
-  }
-
-  // Prevent overshooting home - pieces can only move to exactly 56, not beyond
-  if (travelCount + diceNo > 56) {
-    dispatch(unfreezeDice());
-    return;
-  }
 
   for (let i = 0; i < diceNo; i++) {
     const updatedPosition = getState().game[`player${playerNo}`].find(item => item.id === id);
@@ -76,12 +64,6 @@ export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getSta
 
     playSound('pile_move');
     await delay(200);
-
-    // Check if piece reached home during movement
-    if (travelCount >= 56) {
-      playSound('home_win');
-      break; // Stop moving if home is reached
-    }
   }
 
   const updatedState = getState();
@@ -124,13 +106,13 @@ export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getSta
     return;
   }
 
-// Check for 6 or win
-  if (diceNo === 6 || travelCount >= 56) {
+  // Check for 6 or win
+  if (diceNo === 6 || travelCount === 57) {
     dispatch(updatePlayerChance({ chancePlayer: playerNo }));
 
-    if (travelCount >= 56) {
-      // Don't play home_win sound here since it was already played during movement
-      
+    if (travelCount === 57) {
+      playSound('home_win');
+
       const finalPlayerState = getState().game[`player${playerNo}`];
 
       if (checkWinningCriteria(finalPlayerState)) {
@@ -150,4 +132,4 @@ export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getSta
   let nextPlayer = playerNo + 1;
   if (nextPlayer > 4) nextPlayer = 1;
   dispatch(updatePlayerChance({ chancePlayer: nextPlayer }));
-}; 
+};

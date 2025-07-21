@@ -34,6 +34,7 @@ import {
   updateDiceNo,
   updatePlayerChance,
 } from '../redux/reducers/gameSlice';
+import Pile from './Pile';
 
 const Dice = React.memo(({ color, rotate, player, data }) => {
   const dispatch = useDispatch();
@@ -72,9 +73,9 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
   }, [currentPlayerChance, isDiceRolled, arrowAnim]);
 
   const handleDicePress = async () => {
-    //const newDiceNo = Math.floor(Math.random() * 6) + 1;
+    const newDiceNo = Math.floor(Math.random() * 6) + 1;
 
-    const newDiceNo=1; // For testing purposes, always rolling a 6
+    //const newDiceNo=1; // For testing purposes, always rolling a 6
 
     playSound('dice_roll');
     setDiceRolling(true);
@@ -84,12 +85,22 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
     setDiceRolling(false);
 
     const isAnyPieceAlive = data?.findIndex(i => i.pos != 0 && i.pos !== 0 && i.player === player) !== -1;
-    const isAnyPieceLocked = playerPieces.findIndex(i => i.pos === 0 && i.travelCount < 56);
-    if (isAnyPieceAlive == -1 ) {
-      dispatch(enablePileSelection({ playerNo: player }));
+    const isAnyPieceLocked = data?.findIndex(i => i.pos === 0);
+
+    if (isAnyPieceAlive ==-1 ) {
+      if (newDiceNo === 6) {
+        dispatch(enablePileSelection({ playerNo: player }));
+      } else {
+        let chancePlayer = player + 1;
+        if (chancePlayer > 4) {
+          chancePlayer = 1;
+        }
+        await delay(600);
+        dispatch(updatePlayerChance({ chancePlayer }));
+      }
     } else {
       const canMove = playerPieces.some(
-        piece => piece.travelCount < 56 && piece.travelCount + newDiceNo <= 56 && piece.pos != 0,
+        piece => Pile.travelCount + newDiceNo <= 57 && Pile.pos != 0,
       );
 
       if (
@@ -106,7 +117,9 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
         return;
       }
 
-      dispatch(enablePileSelection({ playerNo: player }));
+      if (newDiceNo == 6) {
+        dispatch(enablePileSelection({ playerNo: player }));
+      }
       dispatch(enableCellSelection({ playerNo: player }));
     }
   };
