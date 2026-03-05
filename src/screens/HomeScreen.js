@@ -1,39 +1,21 @@
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-} from 'react';
+// ✅ EXPO CONVERTED
+import React, { useCallback, useEffect, useRef } from 'react';
 
 import LottieView from 'lottie-react-native';
-import {
-  Alert,
-  Animated,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import SoundPlayer from 'react-native-sound-player';
-import {
-  useDispatch,
-  useSelector,
-} from 'react-redux';
+import { Alert, Animated, Image, Pressable, Text, View } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
 
-import {useIsFocused} from '@react-navigation/native';
+import { useIsFocused } from '@react-navigation/native';
 
 import Witch from '../assets/animation/witch.json';
 import Logo from '../assets/images/logo.png';
 import GradientButton from '../components/GradientButton';
 import Wrapper from '../components/Wrapper';
-import {
-  deviceHeight,
-  deviceWidth,
-} from '../constants/Scaling';
-import {navigate} from '../helpers/NavigationUtil';
-import {playSound} from '../helpers/SoundUtility';
-import {selectCurrentPositions} from '../redux/reducers/gameSelectors';
-import {resetGame} from '../redux/reducers/gameSlice';
+import { deviceHeight, deviceWidth } from '../constants/Scaling';
+import { navigate } from '../helpers/NavigationUtil';
+import { playSound, stopSound } from '../helpers/SoundUtility';
+import { selectCurrentPositions } from '../redux/reducers/gameSelectors';
+import { resetGame } from '../redux/reducers/gameSlice';
 
 const HomeScreen = () => {
   const dispatch = useDispatch();
@@ -82,7 +64,7 @@ const HomeScreen = () => {
 
   const startGame = useCallback(async (isNew = false) => {
     try {
-      SoundPlayer.stop();
+      await stopSound();
       if (isNew) {
         dispatch(resetGame());
       }
@@ -102,91 +84,62 @@ const HomeScreen = () => {
   }, [startGame]);
 
   return (
-    <Wrapper style={styles.mainContainer}>
-      <View style={styles.imgContainer}>
-        <Image source={Logo} style={styles.img} />
+    <Wrapper>
+      <View
+        className="justify-center items-center mt-[10px]"
+        style={{ width: deviceWidth * 0.6, height: deviceHeight * 0.2 }}
+      >
+        <Image source={Logo} className="w-full h-full" resizeMode="contain" />
       </View>
 
-      <View style={styles.buttonContainer}>
-        { currentPositions.length !== 0 && (
-          renderButton('RESUME', handleResumePress)
-        )}
+      <View className="items-center mt-5">
+        {currentPositions.length !== 0 && renderButton('RESUME', handleResumePress)}
         {renderButton('NEW GAME', handleNewGamePress)}
         {renderButton('VS CPU', () => Alert.alert('Coming soon! Click New Game'))}
         {renderButton('2 VS 2', () => Alert.alert('Coming soon! Click New Game'))}
       </View>
 
       <Animated.View
-        style={[
-          styles.witchContainer,
-          {
-            transform: [
-              { translateX: witchAnimation },
-              { scaleX: scalXAnimation },
-            ],
-          },
-        ]}>
+        className="absolute"
+        style={{
+          top: '70%',
+          left: '24%',
+          transform: [
+            { translateX: witchAnimation },
+            { scaleX: scalXAnimation },
+          ],
+        }}
+      >
         <Pressable
           onPress={() => {
             const random = Math.floor(Math.random() * 3) + 1;
             playSound(`girl${random}`);
-          }}>
+          }}
+        >
           <LottieView
             source={Witch}
             autoPlay
             loop
             speed={1}
-            style={styles.Witch}
+            style={{ width: 250, height: 250, transform: [{ rotate: '25deg' }] }}
           />
         </Pressable>
       </Animated.View>
 
-      <Text style={styles.artist}>Created by - Kabir Mondal</Text>
+      <Text
+        className="absolute text-white opacity-50 italic"
+        style={{ bottom: 40, fontSize: 14, fontWeight: '800' }}
+      >
+        Created by - Kabir Mondal
+      </Text>
     </Wrapper>
   );
 };
 
-const styles = StyleSheet.create({
-    mainContainer: {
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        flex: 1,
-    },
-    imgContainer: {
-        width: deviceWidth * 0.6,
-        height: deviceHeight * 0.2,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 10,
-    },
-    buttonContainer: {
-        alignItems: 'center',
-        marginTop: 20,
-    },
-    img: {
-        width: '100%',
-        height: '100%',
-        resizeMode: 'contain',
-    },
-    artist: {
-        position: 'absolute',
-        bottom: 40,
-        color: 'white',
-        fontSize: 14,
-        fontWeight: '800',
-        opacity: 0.5,
-        fontStyle: 'italic',
-    },
-    witchContainer: {
-        position: 'absolute',
-        top: '70%',
-        left: '24%',
-    },
-    Witch: {
-        width: 250,
-        height: 250,
-        transform: [{ rotate: '25deg' }],
-    },
-});
-
 export default HomeScreen;
+
+// ⚠️ INLINE FALLBACK: imgContainer width/height (deviceWidth * 0.6, deviceHeight * 0.2) — device-computed
+// ⚠️ INLINE FALLBACK: witchContainer top/left percentages — NativeWind % in Animated.View needs inline
+// ⚠️ INLINE FALLBACK: transform (translateX, scaleX) — animated values must be inline
+// ⚠️ INLINE FALLBACK: Witch LottieView size and rotate transform — pixel dimensions + transform
+// ⚠️ INLINE FALLBACK: artist bottom: 40, fontSize, fontWeight — mixed with NativeWind classes

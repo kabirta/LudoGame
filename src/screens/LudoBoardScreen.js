@@ -1,20 +1,10 @@
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+// ✅ EXPO CONVERTED
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import {
-  Animated,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import {useSelector} from 'react-redux';
+import { Animated, Image, TouchableOpacity, View } from 'react-native';
+import { useSelector } from 'react-redux';
 
-import {useIsFocused} from '@react-navigation/native';
+import { useIsFocused } from '@react-navigation/native';
 
 import MenuIcon from '../assets/images/menu.png';
 import StartGame from '../assets/images/start.png';
@@ -26,18 +16,10 @@ import VerticalPath from '../components/path/VerticalPath';
 import Pocket from '../components/Pocket';
 import WinModal from '../components/WinModal';
 import Wrapper from '../components/Wrapper';
-import {Colors} from '../constants/Colors';
-import {
-  deviceHeight,
-  deviceWidth,
-} from '../constants/Scaling';
-import {
-  Plot1Data,
-  Plot2Data,
-  Plot3Data,
-  Plot4Data,
-} from '../helpers/PlotData';
-import {playSound} from '../helpers/SoundUtility';
+import { Colors } from '../constants/Colors';
+import { deviceHeight, deviceWidth } from '../constants/Scaling';
+import { Plot1Data, Plot2Data, Plot3Data, Plot4Data } from '../helpers/PlotData';
+import { playSound } from '../helpers/SoundUtility';
 import {
   selectDiceTouch,
   selectPlayer1,
@@ -101,73 +83,69 @@ const LudoBoardScreen = () => {
 
   return (
     <Wrapper>
-      <View style={styles.container}>
-        <TouchableOpacity style={styles.menuIcon} onPress={handleMenuPress}>
-          <Image source={MenuIcon} style={styles.menuIconImage} resizeMode="contain"/>
+      <View
+        className="self-center justify-center"
+        style={{ height: deviceHeight * 0.5, width: deviceWidth }}
+      >
+        <TouchableOpacity
+          className="absolute z-[20]"
+          style={{ top: -150 }}
+          onPress={handleMenuPress}
+        >
+          <Image source={MenuIcon} style={{ width: 40, height: 30 }} resizeMode="contain" />
         </TouchableOpacity>
 
-      <View style = {styles.container}>
         <View
-           style={styles.flexRow}
-          pointerEvents={isDiceTouch ? 'none' : 'auto'}>
-          <Dice color ={Colors.green} player={2} data={player2} />
-          <Dice color ={Colors.yellow} player={3} rotate data={player3} />
+          className="self-center justify-center"
+          style={{ height: deviceHeight * 0.5, width: deviceWidth }}
+        >
+          <View
+            className="justify-between items-center flex-row px-[30px]"
+            pointerEvents={isDiceTouch ? 'none' : 'auto'}
+          >
+            <Dice color={Colors.green} player={2} data={player2} />
+            <Dice color={Colors.yellow} player={3} rotate data={player3} />
           </View>
 
+          <View className="w-full h-full self-center p-[10px]">
+            <View className="w-full h-[40%] justify-between flex-row bg-[#ccc]">
+              <Pocket color={Colors.green} player={2} data={player2} />
+              <VerticalPath cells={Plot2Data} color={Colors.yellow} />
+              <Pocket color={Colors.yellow} player={3} data={player3} />
+            </View>
 
+            <View className="flex-row w-full h-[20%] justify-between bg-[#1E5162]">
+              <HorizontalPath cells={Plot1Data} color={Colors.green} />
+              <FourTriangles
+                player1={player1}
+                player2={player2}
+                player3={player3}
+                player4={player4}
+              />
+              <HorizontalPath cells={Plot3Data} color={Colors.blue} />
+            </View>
 
-       <View style={styles.ludoBoard}>
-        <View style={styles.plotContainer}>
-          <Pocket color={Colors.green} player={2} data={player2} />
-          <VerticalPath cells= {Plot2Data} color={Colors.yellow} />
-          <Pocket color={Colors.yellow} player={3} data={player3} />
+            <View className="w-full h-[40%] justify-between flex-row bg-[#ccc]">
+              <Pocket color={Colors.red} player={1} data={player1} />
+              <VerticalPath cells={Plot4Data} color={Colors.red} />
+              <Pocket color={Colors.blue} player={4} data={player4} />
+            </View>
+          </View>
+
+          <View
+            className="justify-between items-center flex-row px-[30px]"
+            pointerEvents={isDiceTouch ? 'none' : 'auto'}
+          >
+            <Dice color={Colors.red} player={1} data={player1} />
+            <Dice color={Colors.blue} rotate player={4} data={player4} />
+          </View>
         </View>
-
-
-
-        <View style={styles.pathContainer}>
-          <HorizontalPath cells={Plot1Data} color={Colors.green} />
-          <FourTriangles
-          player1={player1}
-          player2={player2}
-          player3={player3}
-          player4={player4}
-          />
-          <HorizontalPath cells={Plot3Data} color={Colors.blue} />
-        </View>
-
-
-        <View style={styles.plotContainer}>
-          <Pocket color={Colors.red} player={1} data={player1} />
-          <VerticalPath cells={Plot4Data} color={Colors.red}  />
-          <Pocket color={Colors.blue} player={4} data={player4} />
-        </View>
-       </View>
-
-
-       <View
-       style={styles.flexRow}
-        pointerEvents={isDiceTouch ? 'none' : 'auto'}>
-          <Dice color ={Colors.red} player={1} data={player1} />
-          <Dice color ={Colors.blue} rotate player={4}  data={player4} />
-       </View>
-
-
-
-
-  </View>
-
-
-
-
-
-
 
         {showStartImage && (
           <Animated.Image
             source={StartGame}
             style={{
-              width: deviceWidth * 1,
+              width: deviceWidth,
               height: deviceWidth * 0.4,
               position: 'absolute',
               opacity,
@@ -176,10 +154,7 @@ const LudoBoardScreen = () => {
         )}
 
         {menuVisible && (
-          <MenuModal
-            onPressHide={handleCloseMenu}
-            visible={menuVisible}
-          />
+          <MenuModal onPressHide={handleCloseMenu} visible={menuVisible} />
         )}
 
         {winner != null && <WinModal winner={winner} />}
@@ -188,52 +163,10 @@ const LudoBoardScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    alignSelf:'center',
-    justifyContent:'center',
-    height:deviceHeight * 0.5,
-    width:deviceWidth,
-
-  },
-  ludoBoard: {
-    width: '100%',
-    height: '100%',
-    alignSelf: 'center',
-    padding: 10,
-    
-  },
-  menuIcon: {
-    position: 'absolute',
-    top: -150,
-    zIndex:20,
-  },
-  menuIconImage: {
-    width: 40,
-    height: 30,
-  },
-  flexRow: {
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexDirection:'row',
-    paddingHorizontal: 30,
-  },
-  plotContainer: {
-    width: '100%',
-    height: '40%',
-    justifyContent:'space-between',
-
-    flexDirection: 'row',
-    backgroundColor: '#ccc',
-
-  },
-  pathContainer:{
-    flexDirection:'row',
-    width: '100%',
-    height: '20%',
-    justifyContent:'space-between',
-    backgroundColor: '#1E5162',
-  },
-});
-
 export default LudoBoardScreen;
+
+// ⚠️ INLINE FALLBACK: container height/width (deviceHeight * 0.5, deviceWidth) — device-computed dimensions
+// ⚠️ INLINE FALLBACK: menuIcon top: -150 — exact pixel offset for overlay positioning
+// ⚠️ INLINE FALLBACK: menuIconImage size (40x30) — exact pixel icon dimensions
+// ⚠️ INLINE FALLBACK: StartGame image width/height — computed from deviceWidth
+// ⚠️ INLINE FALLBACK: opacity (Animated.Value) — animated value must be inline style

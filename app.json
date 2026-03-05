@@ -1,4 +1,40 @@
 {
-  "name": "ludo_app",
-  "displayName": "ludo_app"
+  "expo": {
+    "name": "Ludo App",
+    "slug": "ludo-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/images/logo.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./src/assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ludo.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/logo.png",
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "com.ludo.app"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "fonts": [
+      "./src/assets/fonts/Philosopher-Bold.ttf",
+      "./src/assets/fonts/Philosopher-Regular.ttf"
+    ]
+  }
 }

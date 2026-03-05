@@ -1,101 +1,66 @@
+// ✅ EXPO CONVERTED
 import React from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
 
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
-import {RFValue} from 'react-native-responsive-fontsize';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { playSound } from '../helpers/SoundUtility';
 
-import {playSound} from '../helpers/SoundUtility';
-
-const iconsSize = RFValue(20);
+const ICON_SIZE = 20;
 
 const GradientButton = ({ title, onPress, iconColor = '#d5be3e' }) => {
   return (
-    <View style={styles.maincontainer}>
-      <TouchableOpacity activeOpacity={0.8}
-      style={styles.btnContainer}
-      onPress={() =>{
-        playSound('ui');
-        onPress();
-
-      }}>
-      <LinearGradient
-  colors={['#4c669f', '#3b5998', '#192f6a']}
-  style={styles.button}
-  start={{ x: 0, y: 0 }}
-  end={{ x: 0, y: 1 }}
->
-  {
-    title === 'RESUME' ? (
-      <MaterialIcons name="play-arrow" size={iconsSize} color={iconColor} />
-    ) : title === 'NEW GAME' ? (
-      <MaterialIcons name="play-circle" size={iconsSize} color={iconColor} />
-    ) : title === 'VS CPU' ? (
-      <MaterialIcons name="airplay" size={iconsSize} color={iconColor} />
-    ) : title === 'HOME' ? (
-      <MaterialIcons name="home" size={iconsSize} color={iconColor} />
-    ) : (
-      <MaterialIcons name="person-4" size={iconsSize} color={iconColor} />
-    )
-  }
-
-  <Text style={styles.buttontText}>{title}</Text>
-</LinearGradient>
-
+    <View
+      className="rounded-[10px] border-[5px] border-black my-[10px] self-center bg-white"
+      style={{ width: 230, height: 55 }}
+    >
+      <TouchableOpacity
+        activeOpacity={0.8}
+        className="rounded-[10px] border-[5px] border-black self-center bg-white"
+        style={{
+          width: 230,
+          height: 55,
+          elevation: 5,
+          shadowColor: '#d5be3e',
+          shadowOffset: { width: 1, height: 1 },
+          shadowRadius: 10,
+        }}
+        onPress={() => {
+          playSound('ui');
+          onPress();
+        }}
+      >
+        <LinearGradient
+          colors={['#4c669f', '#3b5998', '#192f6a']}
+          className="w-full h-full rounded-[10px] border-2 border-black flex-row justify-center items-center px-5 py-[10px]"
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        >
+          {title === 'RESUME' ? (
+            <MaterialIcons name="play-arrow" size={ICON_SIZE} color={iconColor} />
+          ) : title === 'NEW GAME' ? (
+            <MaterialIcons name="play-circle" size={ICON_SIZE} color={iconColor} />
+          ) : title === 'VS CPU' ? (
+            <MaterialIcons name="airplay" size={ICON_SIZE} color={iconColor} />
+          ) : title === 'HOME' ? (
+            <MaterialIcons name="home" size={ICON_SIZE} color={iconColor} />
+          ) : (
+            <MaterialIcons name="person" size={ICON_SIZE} color={iconColor} />
+          )}
+          <Text
+            className="text-white w-full text-center"
+            style={{ fontSize: 16, fontFamily: 'Philosopher-Bold' }}
+          >
+            {title}
+          </Text>
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
 };
-const styles = StyleSheet.create({
-    maincontainer: {
-      width: 230, // Ensure consistent width (slightly increased for padding effect)
-      height: 55, // Make sure it matches button height
-      borderRadius: 10,
-      borderWidth: 5,
-      borderColor: '#000',
-      marginVertical: 10,
-      alignSelf: 'center',
-      backgroundColor: 'white', // Ensure it looks the same
-    },
-    btnContainer: {
-      width: 230, // Same as maincontainer
-      height: 55, // Same height for equal look
-      borderRadius: 10, // Matching radius
-      borderWidth: 5, // Same border
-      borderColor: '#000',
-      elevation: 5,
-      backgroundColor: 'white',
-      shadowColor: '#d5be3e',
-      shadowOffset: { width: 1, height: 1 },
-      shadowRadius: 10,
-      alignSelf: 'center',
-    },
-    buttontText: {
-      fontSize: RFValue(16),
-      color: 'white',
-      width: '100%', // Ensure full text width
-      textAlign: 'center',
-      fontFamily: 'Poppins-Bold',
-    },
-    button: {
-      width: '100%', // Full width
-      height: '100%', // Make sure it fills btnContainer
-      borderRadius: 10, // Same as container
-      borderWidth: 2,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      backgroundColor: 'transparent', // Ensure it looks the same
-      borderColor: '#000',
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-  });
-
 
 export default GradientButton;
+
+// ⚠️ INLINE FALLBACK: width: 230, height: 55 — exact pixel values for consistent button sizing
+// ⚠️ INLINE FALLBACK: elevation, shadowColor, shadowOffset, shadowRadius — shadow props not in Tailwind
+// ⚠️ INLINE FALLBACK: fontSize: 16 — RFValue replaced with fixed; fontFamily needs expo-font loaded

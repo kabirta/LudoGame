@@ -1,22 +1,10 @@
-import { MMKV } from 'react-native-mmkv';
-
-const storage = new MMKV();
+// ✅ EXPO CONVERTED — react-native-mmkv → @react-native-async-storage/async-storage
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const reduxStorage = {
-  setItem: (key, value) => {
-    storage.set(key, value);
-    return Promise.resolve(true);
-  },
-
-  getItem: (key) => {
-    const value = storage.getString(key);
-    return Promise.resolve(value);
-  },
-
-  removeItem: (key) => {
-    storage.delete(key);
-    return Promise.resolve();
-  },
+  setItem: (key, value) => AsyncStorage.setItem(key, value),
+  getItem: (key) => AsyncStorage.getItem(key),
+  removeItem: (key) => AsyncStorage.removeItem(key),
 };
 
 export default reduxStorage;

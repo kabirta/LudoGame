@@ -1,33 +1,16 @@
-import React, {
-  memo,
-  useCallback,
-  useMemo,
-} from 'react';
+// ✅ EXPO CONVERTED
+import React, { memo, useCallback, useMemo } from 'react';
+import { View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useDispatch, useSelector } from 'react-redux';
 
-import {
-  StyleSheet,
-  View,
-} from 'react-native';
-import {RFValue} from 'react-native-responsive-fontsize';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import {
-  useDispatch,
-  useSelector,
-} from 'react-redux';
-
-import {Colors} from '../../constants/Colors';
-import {
-  ArrowSpot,
-  SafeSpots,
-  StarSpots,
-} from '../../helpers/PlotData';
-import {handleForwardThunk} from '../../redux/reducers/GameAction';
-import {selectCurrentPositions} from '../../redux/reducers/gameSelectors';
+import { Colors } from '../../constants/Colors';
+import { ArrowSpot, SafeSpots, StarSpots } from '../../helpers/PlotData';
+import { handleForwardThunk } from '../../redux/reducers/GameAction';
+import { selectCurrentPositions } from '../../redux/reducers/gameSelectors';
 import Pile from '../Pile';
 
 const Cell = ({ id, color }) => {
-
-
   const dispatch = useDispatch();
   const plottedPieces = useSelector(selectCurrentPositions);
 
@@ -42,26 +25,22 @@ const Cell = ({ id, color }) => {
 
   const handlePress = useCallback((playerNo, pieceId) => {
     dispatch(handleForwardThunk(playerNo, pieceId, id));
-    
   }, [dispatch, id]);
 
   return (
     <View
-      style={[
-        styles.container,
-        { backgroundColor: isSafeSpot ? color : 'white' },
-      ]}
+      className="border-[0.4px] border-[#4f6e82] w-full h-full justify-center items-center"
+      style={{ backgroundColor: isSafeSpot ? color : 'white' }}
     >
       {/* Star Spot Icon */}
       {isStarSpot && (
-        <Ionicons name="star-outline" size={RFValue(20)} color='grey' />
+        <Ionicons name="star-outline" size={20} color="grey" />
       )}
 
       {/* Arrow Spot Icon */}
       {isArrowSpot && (
         <Ionicons
           name="arrow-forward-outline"
-          
           style={{
             transform: [
               {
@@ -76,14 +55,13 @@ const Cell = ({ id, color }) => {
               },
             ],
           }}
-          size={RFValue(12)}
+          size={12}
           color={color}
         />
       )}
 
       {/* Render Player Pieces */}
-      <View style={styles.pieceContainer}>
-
+      <View className="absolute top-0 bottom-0 z-[99]">
         {piecesAtPosition?.map((piece, index) => {
           const playerLetter = piece.id.slice(0, 1);
           const playerNo =
@@ -96,7 +74,7 @@ const Cell = ({ id, color }) => {
               : 4;
 
           const pieceColor =
-              piece.id.slice(0, 1) === 'A'
+            piece.id.slice(0, 1) === 'A'
               ? Colors.red
               : piece.id.slice(0, 1) === 'B'
               ? Colors.green
@@ -107,32 +85,28 @@ const Cell = ({ id, color }) => {
           return (
             <View
               key={piece.id}
-              style={[
-                styles.pieceContainer,
-                {
-                  transform: [
-                    {
-                      scale: piecesAtPosition?.length === 1 ? 1 : 0.7,
-                    },
-                    {
-                      translateX:
-                        piecesAtPosition.length === 1
-                          ? 0
-                          : index * 2 === 0
-                          ? -6
-                          : 6,
-                    },
-                    {
-                      translateY:
-                        piecesAtPosition.length === 1
-                          ? 0
-                          : index < 2 
-                          ? -6
-                          : 6,
-                    },
-                  ],
-                },
-              ]}
+              className="absolute top-0 bottom-0 z-[99]"
+              style={{
+                transform: [
+                  { scale: piecesAtPosition?.length === 1 ? 1 : 0.7 },
+                  {
+                    translateX:
+                      piecesAtPosition.length === 1
+                        ? 0
+                        : index * 2 === 0
+                        ? -6
+                        : 6,
+                  },
+                  {
+                    translateY:
+                      piecesAtPosition.length === 1
+                        ? 0
+                        : index < 2
+                        ? -6
+                        : 6,
+                  },
+                ],
+              }}
             >
               <Pile
                 cell={true}
@@ -149,22 +123,8 @@ const Cell = ({ id, color }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    borderWidth: 0.4,
-    borderColor: Colors.borderColor,
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pieceContainer: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    zIndex: 99,
-    
-  },
-});
-
 export default memo(Cell);
+
+// ⚠️ INLINE FALLBACK: backgroundColor — computed from isSafeSpot ? color : 'white'
+// ⚠️ INLINE FALLBACK: transform (scale, translateX, translateY) — computed animation values
+// ⚠️ INLINE FALLBACK: Ionicons arrow transform[rotate] — directional rotation must be inline

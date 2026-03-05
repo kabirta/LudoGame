@@ -1,16 +1,13 @@
-import React, {useCallback} from 'react';
-
-import {
-  StyleSheet,
-  View,
-} from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+// ✅ EXPO CONVERTED
+import React, { useCallback } from 'react';
+import { View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Modal from 'react-native-modal';
-import {useDispatch} from 'react-redux';
+import { useDispatch } from 'react-redux';
 
-import {goBack} from '../helpers/NavigationUtil';
-import {playSound} from '../helpers/SoundUtility';
-import {resetGame} from '../redux/reducers/gameSlice';
+import { goBack } from '../helpers/NavigationUtil';
+import { playSound } from '../helpers/SoundUtility';
+import { resetGame } from '../redux/reducers/gameSlice';
 import GradientButton from './GradientButton';
 
 const MenuModal = ({ visible, onPressHide }) => {
@@ -22,15 +19,14 @@ const MenuModal = ({ visible, onPressHide }) => {
     onPressHide();
   }, [dispatch, onPressHide]);
 
-
   const handleHome = useCallback(() => {
-    goBack(); // Navigate to home screen or main menu
+    goBack();
     onPressHide();
   }, [onPressHide]);
 
   return (
     <Modal
-      style={styles.bottomModalView}
+      className="justify-center w-[95%] items-center"
       isVisible={visible}
       backdropColor="black"
       backdropOpacity={0.8}
@@ -39,13 +35,13 @@ const MenuModal = ({ visible, onPressHide }) => {
       animationOut="zoomOut"
       onBackButtonPress={onPressHide}
     >
-      <View style={styles.modelContainer}>
-        <View style={styles.gradientContainer}>
+      <View>
+        <View className="rounded-[20px] overflow-hidden w-[96%] justify-center items-center border-[gold]">
           <LinearGradient
             colors={['#0f0c29', '#302b63', '#24243e']}
-            style={styles.mondalContainer}
+            className="w-full justify-center items-center"
           >
-            <View style={styles.subView}>
+            <View className="w-full my-5 self-center justify-center items-center">
               <GradientButton title="RESUME" onPress={onPressHide} />
               <GradientButton title="NEW GAME" onPress={handleNewGame} />
               <GradientButton title="HOME" onPress={handleHome} />
@@ -56,39 +52,5 @@ const MenuModal = ({ visible, onPressHide }) => {
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  buttomModalView: {
-    justifyContent:'center',
-    width: '95%',
-    alignItems: 'center',
-
-  },
-  gradientContainer: {
-
-    borderRadius: 20,
-    overflow: 'hidden',
-
-
-    width: '96%',
-    borderColor: 'gold',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  subView: {
-    width:'100%',
-    marginVertical:20,
-    alignSelf: 'center',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mondalContainer: {
-    width:'100%',
-    justifyContent: 'center',
-    alignItems:'center',
-  },
-
-
-});
 
 export default MenuModal;

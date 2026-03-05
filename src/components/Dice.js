@@ -1,28 +1,15 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+// ✅ EXPO CONVERTED
+import React, { useEffect, useRef, useState } from 'react';
 
 import LottieView from 'lottie-react-native';
-import {
-  Animated,
-  Easing,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
-import {
-  useDispatch,
-  useSelector,
-} from 'react-redux';
+import { Animated, Easing, Image, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useDispatch, useSelector } from 'react-redux';
 
 import DiceRoll from '../assets/animation/diceroll.json';
 import Arrow from '../assets/images/arrow.png';
-import {BackgroundImage} from '../helpers/GetIcons';
-import {playSound} from '../helpers/SoundUtility';
+import { BackgroundImage } from '../helpers/GetIcons';
+import { playSound } from '../helpers/SoundUtility';
 import {
   selectCurrentPlayerChance,
   selectDiceNo,
@@ -75,8 +62,6 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
   const handleDicePress = async () => {
     const newDiceNo = Math.floor(Math.random() * 6) + 1;
 
-    //const newDiceNo=1; // For testing purposes, always rolling a 6
-
     playSound('dice_roll');
     setDiceRolling(true);
     await delay(800);
@@ -87,7 +72,7 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
     const isAnyPieceAlive = data?.findIndex(i => i.pos != 0 && i.pos !== 0 && i.player === player) !== -1;
     const isAnyPieceLocked = data?.findIndex(i => i.pos === 0);
 
-    if (isAnyPieceAlive ==-1 ) {
+    if (isAnyPieceAlive == -1) {
       if (newDiceNo === 6) {
         dispatch(enablePileSelection({ playerNo: player }));
       } else {
@@ -125,34 +110,51 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
   };
 
   return (
-    <View style={[styles.flexRow, { transform: [{ scaleX: rotate ? -1 : 1 }] }]}>
-      <View style={styles.border1}>
+    <View
+      className="justify-center items-center flex-row"
+      style={{ transform: [{ scaleX: rotate ? -1 : 1 }] }}
+    >
+      <View
+        className="border-[3px] border-[#f0ce2c]"
+        style={{ borderRightWidth: 0 }}
+      >
         <LinearGradient
-          style={styles.LinearGradient}
+          className="p-[1px] border-[3px] border-[#f0ce2c] justify-center items-center"
+          style={{ borderRightWidth: 0 }}
           colors={['#0052be', '#5f9fcb', '#97c6c9']}
           start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}>
-          <View style={styles.pileContainer}>
-            <Image source={pileIcon} style={styles.pileIcon} />
+          end={{ x: 1, y: 0.5 }}
+        >
+          <View className="px-[3px] py-[10px]">
+            <Image source={pileIcon} style={{ width: 35, height: 35 }} />
           </View>
         </LinearGradient>
       </View>
 
-      <View style={styles.border2}>
+      <View
+        className="border-[3px] p-[1px] bg-[#aac8ab] rounded-[10px] border-[#aac8ab]"
+        style={{ borderLeftWidth: 3 }}
+      >
         <LinearGradient
-          style={styles.diceGradient}
+          className="border-[3px] border-[#f0ce2c] justify-center items-center"
+          style={{ borderLeftWidth: 3 }}
           colors={['#aac8ab', '#aac8ab', '#aac8ab']}
           start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}>
-          <View style={styles.diceContainer}>
+          end={{ x: 1, y: 0.5 }}
+        >
+          <View
+            className="bg-[#e8c0c1] border border-[#e8c0c1] rounded-[5px] justify-center items-center"
+            style={{ width: 60, height: 70, paddingHorizontal: 8, paddingVertical: 8, padding: 4 }}
+          >
             {currentPlayerChance === player ? (
               <>
                 {diceRolling ? null : (
                   <TouchableOpacity
                     disabled={diceRolling}
                     activeOpacity={0.4}
-                    onPress={handleDicePress}>
-                    <Image source={diceIcon} style={styles.dice} />
+                    onPress={handleDicePress}
+                  >
+                    <Image source={diceIcon} style={{ width: 45, height: 45 }} />
                   </TouchableOpacity>
                 )}
               </>
@@ -170,7 +172,7 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
       {currentPlayerChance === player && diceRolling ? (
         <LottieView
           source={DiceRoll}
-          style={styles.rollingDice}
+          style={{ height: 80, width: 80, zIndex: 99, top: -25, position: 'absolute' }}
           autoPlay
           loop
           cacheComposition
@@ -181,71 +183,9 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
   );
 });
 
-const styles = StyleSheet.create({
-  flexRow: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  pileIcon: {
-    width: 35,
-    height: 35,
-  },
-  diceContainer: {
-    backgroundColor: '#e8c0c1',
-    borderWidth: 1,
-    borderRadius: 5,
-    width: 60,
-    height: 70,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    padding: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pileContainer: {
-    paddingHorizontal: 3,
-    paddingVertical: 10,
-  },
-  LinearGradient: {
-    padding: 1,
-    borderWidth: 3,
-    borderRightWidth: 0,
-    borderColor: '#f0ce2c',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dice: {
-    width: 45,
-    height: 45,
-  },
-  rollingDice: {
-    height: 80,
-    width: 80,
-    zIndex: 99,
-    top: -25,
-    position: 'absolute',
-  },
-  diceGradient: {
-    borderWidth: 3,
-    borderLeftWidth: 3,
-    borderColor: '#f0ce2c',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  border1: {
-    borderWidth: 3,
-    borderRightWidth: 0,
-    borderColor: '#f0ce2c',
-  },
-  border2: {
-    borderWidth: 3,
-    padding: 1,
-    backgroundColor: '#aac8ab',
-    borderRadius: 10,
-    borderLeftWidth: 3,
-    borderColor: '#aac8ab',
-  },
-});
-
 export default Dice;
+
+// ⚠️ INLINE FALLBACK: width/height on diceContainer and icons — exact pixel values for game layout
+// ⚠️ INLINE FALLBACK: borderRightWidth: 0 / borderLeftWidth: 3 — NativeWind cannot override individual border sides
+// ⚠️ INLINE FALLBACK: transform scaleX, translateX — animation/transform must be inline
+// ⚠️ INLINE FALLBACK: rollingDice position — pixel-critical overlay positioning

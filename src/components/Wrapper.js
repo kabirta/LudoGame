@@ -1,42 +1,25 @@
+// ✅ EXPO CONVERTED
 import React from 'react';
-
-import {
-  ImageBackground,
-  SafeAreaView,
-  StyleSheet,
-} from 'react-native';
+import { ImageBackground, SafeAreaView } from 'react-native';
+import { deviceHeight, deviceWidth } from '../constants/Scaling';
 
 import BG from '../assets/images/bg.jpeg';
-import {
-  deviceHeight,
-  deviceWidth,
-} from '../constants/Scaling';
 
-const Wrapper = ({ children, style }) => {
+const Wrapper = ({ children }) => {
   return (
     <ImageBackground
       source={BG}
       resizeMode="cover"
-      style={styles.background}
+      className="flex-1"
+      style={{ width: deviceWidth, height: deviceHeight }}
     >
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView className="flex-1 justify-center items-center">
         {children}
       </SafeAreaView>
     </ImageBackground>
   );
 };
 
-const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    width: deviceWidth,
-    height: deviceHeight,
-  },
-  safeArea: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
-
 export default Wrapper;
+
+// ⚠️ INLINE FALLBACK: width: deviceWidth, height: deviceHeight — device-specific pixel dimensions

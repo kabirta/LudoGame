@@ -1,9 +1,35 @@
-import SoundPlayer from 'react-native-sound-player';
+// ✅ EXPO CONVERTED — react-native-sound-player → expo-av
+import { Audio } from 'expo-av';
 
-export const playSound = (soundName, loop = false) => {
+let currentSound = null;
+
+export const stopSound = async () => {
+  if (currentSound) {
+    try {
+      await currentSound.stopAsync();
+      await currentSound.unloadAsync();
+      currentSound = null;
+    } catch (e) {
+      // ignore
+    }
+  }
+};
+
+export const playSound = async (soundName) => {
   try {
+    await stopSound();
     const soundPath = getSoundPath(soundName);
-    SoundPlayer.playAsset(soundPath);
+    const { sound } = await Audio.Sound.createAsync(soundPath);
+    currentSound = sound;
+    await sound.playAsync();
+    sound.setOnPlaybackStatusUpdate(status => {
+      if (status.didJustFinish) {
+        sound.unloadAsync();
+        if (currentSound === sound) {
+          currentSound = null;
+        }
+      }
+    });
   } catch (e) {
     console.log('cannot play the sound file', e);
   }
