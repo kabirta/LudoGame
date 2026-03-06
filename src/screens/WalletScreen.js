@@ -1,68 +1,143 @@
 import React from 'react';
-
 import {
-  Image,
+  Alert,
+  Dimensions,
+  Platform,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-const WalletScreen = () => {
+const { width } = Dimensions.get('window');
+
+const WalletScreen = ({ navigation }) => {
+  const totalBalance = 1;
+  const winnings = 0;
+
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#040d24', '#0b1e4e', '#0e2a72', '#0b1e4e', '#040d24']}
+      locations={[0, 0.2, 0.5, 0.8, 1]}
+      style={styles.container}
+    >
+      <StatusBar barStyle="light-content" backgroundColor="#040d24" />
 
-      {/* ✅ Top header */}
-      <Text style={styles.header}>My Balances</Text>
-
-      {/* ✅ Total Balance Box */}
-      <View style={styles.balanceBox}>
-        <View style={styles.balanceIconWrapper}>
-          <Image
-            source={require('../assets/wallet.png')} // Replace with your wallet icon
-            style={styles.balanceIcon}
-          />
-        </View>
-        <Text style={styles.balanceAmount}>₹10</Text>
-        <Text style={styles.balanceLabel}>Total Balance</Text>
-      </View>
-
-      {/* ✅ Added Amount Section */}
-      <View style={styles.section}>
-        <View>
-          <Text style={styles.sectionLabel}>Added Amount</Text>
-          <Text style={styles.sectionValue}>₹9</Text>
-        </View>
-        <TouchableOpacity style={styles.addButton}>
-          <Text style={styles.addButtonText}>ADD</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backCircle} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>My Balances</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      {/* ✅ Winnings Section */}
-      <View style={styles.section}>
-        <View>
-          <Text style={styles.sectionLabel}>Winnings</Text>
-          <Text style={styles.sectionValue}>₹0</Text>
-        </View>
-        <TouchableOpacity style={styles.withdrawButton}>
-          <Text style={styles.withdrawButtonText}>WITHDRAW</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ✅ Bonus Section */}
-      <View style={styles.section}>
-        <View>
-          <Text style={styles.sectionLabel}>Bonus</Text>
-          <Text style={styles.sectionValue}>₹1</Text>
+      {/* Wallet icon floating above card */}
+      <View style={styles.walletIconWrapper}>
+        <View style={styles.walletIconOuter}>
+          {/* Rupee coin */}
+          <View style={styles.rupeeCircle}>
+            <Text style={styles.rupeeSymbol}>₹</Text>
+          </View>
+          {/* Wallet body */}
+          <View style={styles.walletBody}>
+            <MaterialCommunityIcons name="wallet" size={28} color="#fff" />
+          </View>
         </View>
       </View>
 
-      {/* ✅ Transaction History */}
-      <TouchableOpacity style={styles.historyButton}>
-        <Text style={styles.historyText}>Transaction History</Text>
+      {/* Main balance card */}
+      <View style={styles.balanceCard}>
+        {/* Total balance */}
+        <View style={styles.totalSection}>
+          <Text style={styles.balanceAmount}>₹{totalBalance}</Text>
+          <Text style={styles.balanceLabel}>Total Balance</Text>
+        </View>
+
+        <View style={styles.cardDivider} />
+
+        {/* Added Amount row */}
+        <View style={styles.rowSection}>
+          <View>
+            <View style={styles.labelRow}>
+              <Text style={styles.rowLabel}>Added Amount</Text>
+              <TouchableOpacity onPress={() => Alert.alert('Added Amount', 'Amount deposited into your wallet.')}>
+                <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.5)" style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.rowValue}>₹0</Text>
+          </View>
+
+          {/* Add button */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => Alert.alert('Add Money', 'Payment gateway coming soon!')}
+          >
+            <LinearGradient
+              colors={['#00c853', '#00897b', '#00695c']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={styles.actionBtn}
+            >
+              <Text style={styles.actionBtnText}>ADD</Text>
+              <View style={styles.actionIconCircle}>
+                <Ionicons name="add-circle-outline" size={16} color="#fff" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.thinDivider} />
+
+        {/* Winnings row */}
+        <View style={[styles.rowSection, { marginTop: 4 }]}>
+          <View>
+            <View style={styles.labelRow}>
+              <Text style={styles.rowLabel}>Winnings</Text>
+              <TouchableOpacity onPress={() => Alert.alert('Winnings', 'Amount won from games.')}>
+                <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.5)" style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.rowValue}>₹{winnings}</Text>
+          </View>
+
+          {/* Withdraw button */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => Alert.alert('Withdraw', 'Minimum withdrawal amount not reached.')}
+          >
+            <LinearGradient
+              colors={['#ffb300', '#f57c00', '#e65100']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={styles.withdrawBtn}
+            >
+              <Text style={styles.withdrawBtnText}>WITHDRAW</Text>
+              <View style={styles.withdrawIconCircle}>
+                <MaterialCommunityIcons name="bank-outline" size={16} color="#fff" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+      </View>
+
+      {/* Transaction History */}
+      <TouchableOpacity
+        style={styles.historyCard}
+        activeOpacity={0.8}
+        onPress={() => Alert.alert('Transaction History', 'No transactions yet.')}
+      >
+        <View style={styles.historyLeft}>
+          <View style={styles.historyIconCircle}>
+            <MaterialCommunityIcons name="currency-inr" size={20} color="#fff" />
+          </View>
+          <Text style={styles.historyText}>Transaction History</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.7)" />
       </TouchableOpacity>
-
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -71,94 +146,215 @@ export default WalletScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#003366',
+    paddingTop: Platform.OS === 'ios' ? 52 : 36,
     alignItems: 'center',
-    paddingTop: 40,
   },
+
+  // Header
   header: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 24,
   },
-  balanceBox: {
-    backgroundColor: '#004080',
+  backCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(100,180,255,0.25)',
+    borderWidth: 2,
+    borderColor: 'rgba(100,180,255,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    color: '#90caf9',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+
+  // Wallet icon
+  walletIconWrapper: {
+    marginBottom: -28,
+    zIndex: 10,
+  },
+  walletIconOuter: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  rupeeCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ffd600',
+    borderWidth: 3,
+    borderColor: '#ff8f00',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -8,
+    zIndex: 2,
+    elevation: 4,
+  },
+  rupeeSymbol: {
+    color: '#bf360c',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  walletBody: {
+    width: 56,
+    height: 44,
+    backgroundColor: '#ff8f00',
     borderRadius: 10,
     alignItems: 'center',
-    padding: 20,
-    width: '90%',
-    marginBottom: 20,
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#e65100',
+    elevation: 4,
   },
-  balanceIconWrapper: {
-    backgroundColor: '#ffa500',
-    padding: 10,
-    borderRadius: 25,
-    marginBottom: 10,
+
+  // Balance card
+  balanceCard: {
+    width: width - 28,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingTop: 40,
+    paddingBottom: 10,
+    overflow: 'hidden',
   },
-  balanceIcon: {
-    width: 30,
-    height: 30,
+  totalSection: {
+    alignItems: 'center',
+    paddingBottom: 16,
   },
   balanceAmount: {
     color: '#fff',
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 44,
+    fontWeight: '900',
   },
   balanceLabel: {
-    color: '#fff',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  section: {
-    backgroundColor: '#0059b3',
-    borderRadius: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '90%',
-    padding: 15,
-    marginBottom: 15,
-    alignItems: 'center',
-  },
-  sectionLabel: {
-    color: '#fff',
+    color: '#90caf9',
     fontSize: 16,
+    fontWeight: '600',
+    marginTop: 2,
   },
-  sectionValue: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 5,
+  cardDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginHorizontal: 0,
+    marginBottom: 16,
   },
-  addButton: {
-    backgroundColor: '#00cc99',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
+  thinDivider: {
+    height: 1,
+    backgroundColor: 'rgba(100,200,255,0.2)',
+    marginHorizontal: 16,
+    marginVertical: 14,
   },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  withdrawButton: {
-    backgroundColor: '#ff9933',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  withdrawButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  historyButton: {
-    backgroundColor: '#004080',
-    borderRadius: 10,
-    width: '90%',
-    padding: 15,
+
+  // Row section (Winnings / Bonus)
+  rowSection: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 4,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  rowLabel: {
+    color: 'rgba(255,255,255,0.65)',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  rowValue: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+
+  // Action buttons (ADD / WITHDRAW)
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 24,
+    paddingVertical: 10,
+    paddingLeft: 18,
+    paddingRight: 6,
+    gap: 8,
+  },
+  actionBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  actionIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  withdrawBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 24,
+    paddingVertical: 10,
+    paddingLeft: 18,
+    paddingRight: 6,
+    gap: 8,
+  },
+  withdrawBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  withdrawIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Transaction history
+  historyCard: {
+    width: width - 28,
+    marginTop: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+  },
+  historyLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  historyIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(100,180,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   historyText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 17,
+    fontWeight: '700',
   },
 });

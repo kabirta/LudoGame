@@ -95,13 +95,13 @@ const HomeScreen = ({ navigation }) => {
           <Image source={ProfilePic} style={styles.avatar} />
           <View style={styles.userInfo}>
             <Text style={styles.userName} numberOfLines={1}>Player</Text>
-            <View style={styles.walletRow}>
+            <TouchableOpacity style={styles.walletRow} onPress={() => navigation.navigate('WalletScreen')}>
               <Image source={WalletIcon} style={styles.walletIcon} resizeMode="contain" />
-              <Text style={styles.walletAmount}>---</Text>
-              <TouchableOpacity style={styles.addBtn}>
+              <Text style={styles.walletAmount}>₹1</Text>
+              <View style={styles.addBtn}>
                 <Ionicons name="add" size={14} color="#fff" />
-              </TouchableOpacity>
-            </View>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
 

@@ -1,7 +1,7 @@
 // ✅ EXPO CONVERTED
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Animated, Image, TouchableOpacity, View } from 'react-native';
+import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSelector } from 'react-redux';
 
 import { useIsFocused } from '@react-navigation/native';
@@ -40,6 +40,36 @@ const LudoBoardScreen = () => {
   const opacity = useRef(new Animated.Value(1)).current;
   const [menuVisible, setMenuVisible] = useState(false);
   const [showStartImage, setShowStartImage] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(8 * 60); // 8 minutes in seconds
+  const timerRef = useRef(null);
+
+  // Start/reset timer when screen is focused
+  useEffect(() => {
+    if (isFocused) {
+      setTimeLeft(8 * 60);
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isFocused]);
+
+  // Stop timer when game is won
+  useEffect(() => {
+    if (winner != null) clearInterval(timerRef.current);
+  }, [winner]);
+
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   const handleMenuPress = useCallback(() => {
     playSound('ui');
@@ -87,13 +117,26 @@ const LudoBoardScreen = () => {
         className="self-center justify-center"
         style={{ height: deviceHeight * 0.5, width: deviceWidth }}
       >
-        <TouchableOpacity
-          className="absolute z-[20]"
-          style={{ top: -150 }}
-          onPress={handleMenuPress}
-        >
-          <Image source={MenuIcon} style={{ width: 40, height: 30 }} resizeMode="contain" />
-        </TouchableOpacity>
+        {/* Top bar: menu + timer */}
+        <View style={timerStyles.topBar}>
+          <TouchableOpacity onPress={handleMenuPress}>
+            <Image source={MenuIcon} style={{ width: 40, height: 30 }} resizeMode="contain" />
+          </TouchableOpacity>
+
+          <View style={[
+            timerStyles.timerBadge,
+            timeLeft <= 60 && timerStyles.timerBadgeWarning,
+            timeLeft === 0 && timerStyles.timerBadgeDanger,
+          ]}>
+            <Text style={timerStyles.timerIcon}>⏱</Text>
+            <Text style={[
+              timerStyles.timerText,
+              timeLeft <= 60 && timerStyles.timerTextWarning,
+            ]}>
+              {formatTime(timeLeft)}
+            </Text>
+          </View>
+        </View>
 
         <View
           className="self-center justify-center"
@@ -164,6 +207,51 @@ const LudoBoardScreen = () => {
 };
 
 export default LudoBoardScreen;
+
+const timerStyles = StyleSheet.create({
+  topBar: {
+    position: 'absolute',
+    top: -150,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    zIndex: 20,
+  },
+  timerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 30, 80, 0.85)',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(100, 181, 246, 0.5)',
+    gap: 6,
+  },
+  timerBadgeWarning: {
+    borderColor: '#ffb300',
+    backgroundColor: 'rgba(80, 30, 0, 0.9)',
+  },
+  timerBadgeDanger: {
+    borderColor: '#e53935',
+    backgroundColor: 'rgba(100, 0, 0, 0.95)',
+  },
+  timerIcon: {
+    fontSize: 16,
+  },
+  timerText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  timerTextWarning: {
+    color: '#ffb300',
+  },
+});
 
 // ⚠️ INLINE FALLBACK: container height/width (deviceHeight * 0.5, deviceWidth) — device-computed dimensions
 // ⚠️ INLINE FALLBACK: menuIcon top: -150 — exact pixel offset for overlay positioning
