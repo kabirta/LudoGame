@@ -77,7 +77,7 @@ const Cell = ({ id, color }) => {
             piece.id.slice(0, 1) === 'A'
               ? Colors.red
               : piece.id.slice(0, 1) === 'B'
-              ? Colors.green
+              ? Colors.yellow
               : piece.id.slice(0, 1) === 'C'
               ? Colors.yellow
               : Colors.blue;

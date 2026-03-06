@@ -41,19 +41,19 @@ export const gameSlice = createSlice({
 
     },
     updateplayerPieceValue: (state, action) => {
-      const { playerNo, pieceId, pos, travelCount } = action.payload;
+      const { playerNo, pieceId, ...updates } = action.payload;
       const playerPieces = state[playerNo];
       const piece = playerPieces.find(p=> p.id === pieceId);
       state.pileSelectionPlayer = -1;
 
       if (piece) {
-        piece.pos = pos;
-        piece.travelCount = travelCount;
+        Object.assign(piece, updates);
 
         const currentPositionIndex = state.currentPositions.findIndex(
           p => p.id ===pieceId,
         );
-        if(pos=== 0){
+        const isOnBoard = typeof piece.pos === 'number' && piece.pos > 0 && !piece.isHome;
+        if(!isOnBoard){
           if (currentPositionIndex !== -1) {
             state.currentPositions.splice(currentPositionIndex, 1);
           }
@@ -62,12 +62,12 @@ export const gameSlice = createSlice({
           if (currentPositionIndex !== -1) {
             state.currentPositions[currentPositionIndex]={
               id: pieceId,
-              pos,
+              pos: piece.pos,
             };
           } else {
             state.currentPositions.push({
               id: pieceId,
-              pos,
+              pos: piece.pos,
             });
           }
         }

@@ -1,17 +1,21 @@
 import {
   SafeSpots,
   StarSpots,
-  startingPoints,
-  turningPoints,
-  victoryStart,
 } from '../../helpers/PlotData';
+import {
+  canMoveToken,
+  getNextActivePlayer,
+  HOME_POSITION_INDEX,
+  isSafeTile,
+  resetCapturedToken,
+  stepToken,
+} from '../../helpers/LudoMovementEngine';
 import {playSound} from '../../helpers/SoundUtility';
 import {
   selectCurrentPositions,
   selectDiceNo,
 } from './gameSelectors';
 import {
-  announceWinners,
   disableTouch,
   unfreezeDice,
   updateFireworks,
@@ -20,10 +24,6 @@ import {
 } from './gameSlice';
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-function checkWinningCriteria(pieces) {
-  return pieces.every(piece => piece.travelCount >= 57);
-}
 
 export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getState) => {
   const state = getState();
@@ -38,28 +38,26 @@ export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getSta
   dispatch(disableTouch());
 
   let finalPath = piece.pos;
-  const beforePlayerPiece = state.game[`player${playerNo}`].find(item => item.id === id);
-  let travelCount = beforePlayerPiece.travelCount;
+  let updatedToken = state.game[`player${playerNo}`].find(item => item.id === id);
+
+  if (!canMoveToken(updatedToken, diceNo)) {
+    dispatch(updatePlayerChance({ chancePlayer: getNextActivePlayer(playerNo) }));
+    return;
+  }
 
   for (let i = 0; i < diceNo; i++) {
-    const updatedPosition = getState().game[`player${playerNo}`].find(item => item.id === id);
-    let path = updatedPosition.pos + 1;
-
-    if (path === turningPoints[playerNo - 1]) {
-      path = victoryStart[playerNo - 1];
-    }
-    if (path === 53) {
-      path = 1;
-    }
-
-    finalPath = path;
-    travelCount += 1;
+    updatedToken = stepToken(updatedToken, playerNo);
+    finalPath = updatedToken.pos;
 
     dispatch(updateplayerPieceValue({
       playerNo: `player${playerNo}`,
-      pieceId: updatedPosition.id,
-      pos: path,
-      travelCount: travelCount,
+      pieceId: updatedToken.id,
+      playerColor: updatedToken.playerColor,
+      positionIndex: updatedToken.positionIndex,
+      score: updatedToken.score,
+      isHome: updatedToken.isHome,
+      pos: updatedToken.pos,
+      travelCount: updatedToken.travelCount,
     }));
 
     playSound('pile_move');
@@ -83,23 +81,19 @@ export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getSta
   if (
     areDifferentIds &&
     finalPlot.length > 0 &&
-    !SafeSpots.includes(finalPath) &&
-    !StarSpots.includes(finalPath)
+    !isSafeTile(finalPath)
   ) {
     const enemyPiece = finalPlot.find(p => p.id[0] !== id[0]);
     const enemyId = enemyPiece.id[0];
     const enemyPlayerNo = enemyId.charCodeAt(0) - 64;
-    const startingPoint = startingPoints[enemyPlayerNo - 1];
+    const enemyToken = getState().game[`player${enemyPlayerNo}`].find(item => item.id === enemyPiece.id);
 
     playSound('collide');
 
-    // Optional: animate going back step by step
-    // (Can be removed if not needed)
     dispatch(updateplayerPieceValue({
       playerNo: `player${enemyPlayerNo}`,
       pieceId: enemyPiece.id,
-      pos: 0,
-      travelCount: 0,
+      ...resetCapturedToken(enemyToken),
     }));
 
     dispatch(unfreezeDice());
@@ -107,20 +101,11 @@ export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getSta
   }
 
   // Check for 6 or win
-  if (diceNo === 6 || travelCount === 57) {
+  if (diceNo === 6 || updatedToken.positionIndex === HOME_POSITION_INDEX) {
     dispatch(updatePlayerChance({ chancePlayer: playerNo }));
 
-    if (travelCount === 57) {
+    if (updatedToken.positionIndex === HOME_POSITION_INDEX) {
       playSound('home_win');
-
-      const finalPlayerState = getState().game[`player${playerNo}`];
-
-      if (checkWinningCriteria(finalPlayerState)) {
-        dispatch(announceWinners(playerNo));
-        playSound('cheer', true);
-        return;
-      }
-
       dispatch(updateFireworks(true));
     }
 
@@ -129,7 +114,6 @@ export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getSta
   }
 
   // Move to next player
-  let nextPlayer = playerNo + 1;
-  if (nextPlayer > 4) nextPlayer = 1;
+  const nextPlayer = getNextActivePlayer(playerNo);
   dispatch(updatePlayerChance({ chancePlayer: nextPlayer }));
 };

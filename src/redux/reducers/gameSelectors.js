@@ -12,3 +12,10 @@ export const selectPocketPileSelection = (state) => state.game.pileSelectionPlay
 export const selectCellSelection = (state) => state.game.cellSelectionPlayer;
 export const selectDiceTouch = (state) => state.game.touchDiceBlock;
 export const selectFireworks = (state) => state.game.fireworks;
+
+const getPieceScore = piece => piece?.score ?? 0;
+
+export const selectScores = state => ({
+  player1: state.game.player1.reduce((sum, piece) => sum + getPieceScore(piece), 0),
+  player2: state.game.player2.reduce((sum, piece) => sum + getPieceScore(piece), 0),
+});

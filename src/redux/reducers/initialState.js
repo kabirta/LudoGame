@@ -1,29 +1,31 @@
+import { createToken } from '../../helpers/LudoMovementEngine';
+
 const player1InitialState = [
-    {id: 'A1', pos:  0, travelCount: 0},
-    {id: 'A2', pos: 0, travelCount: 0},
-    {id: 'A3', pos: 0, travelCount: 0},
-    {id: 'A4', pos: 0, travelCount: 0},
+    createToken('A1', 1),
+    createToken('A2', 1),
+    createToken('A3', 1),
+    createToken('A4', 1),
 ];
 
 const player2InitialState = [
-    {id: 'B1', pos: 0, travelCount: 0},
-    {id: 'B2', pos: 0, travelCount: 0},
-    {id: 'B3', pos: 0, travelCount: 0},
-    {id: 'B4', pos: 0, travelCount: 0},
+    createToken('B1', 2),
+    createToken('B2', 2),
+    createToken('B3', 2),
+    createToken('B4', 2),
 ];
 
 const player3InitialState = [
-    {id: 'C1', pos: 0, travelCount: 0},
-    {id: 'C2', pos: 0, travelCount: 0},
-    {id: 'C3', pos: 0, travelCount: 0},
-    {id: 'C4', pos: 0, travelCount: 0},
+    createToken('C1', 3),
+    createToken('C2', 3),
+    createToken('C3', 3),
+    createToken('C4', 3),
 ];
 
 const player4InitialState = [
-    {id: 'D1', pos: 0, travelCount: 0},
-    {id: 'D2', pos: 0, travelCount: 0},
-    {id: 'D3', pos: 0, travelCount: 0},
-    {id: 'D4', pos: 0, travelCount: 0},
+    createToken('D1', 4),
+    createToken('D2', 4),
+    createToken('D3', 4),
+    createToken('D4', 4),
 ];
 
 export const initialState = {
@@ -31,6 +33,10 @@ export const initialState = {
     player2: player2InitialState,
     player3: player3InitialState,
     player4: player4InitialState,
+    scores: {
+        player1: 0,
+        player2: 0,
+    },
     chancePlayer: 1,
     diceNo: 1,
     isDiceRolled: false,

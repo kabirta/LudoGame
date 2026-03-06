@@ -1,5 +1,3 @@
-import {Colors} from '../constants/Colors';
-
 interface Image {
   name: string | number;
   image: any;
@@ -29,22 +27,6 @@ export class BackgroundImage {
     {
       name: 6,
       image: require('../assets/images/dice/6.png'),
-    },
-    {
-      name: Colors.green,
-      image: require('../assets/images/piles/green.png'),
-    },
-    {
-      name: Colors.red,
-      image: require('../assets/images/piles/red.png'),
-    },
-    {
-      name: Colors.yellow,
-      image: require('../assets/images/piles/yellow.png'),
-    },
-    {
-      name: Colors.blue,
-      image: require('../assets/images/piles/blue.png'),
     },
   ];
   static GetImage = (name: string) => {

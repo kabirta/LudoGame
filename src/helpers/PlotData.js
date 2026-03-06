@@ -31,7 +31,7 @@ export const startingPoints = [1, 14, 27, 40];
 
 export const colorPlayer = [
   Colors.red,
-  Colors.green,
+  Colors.yellow,
   Colors.yellow,
   Colors.blue,
 ];
