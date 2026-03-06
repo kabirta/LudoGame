@@ -1,145 +1,425 @@
-// ✅ EXPO CONVERTED
 import React, { useCallback, useEffect, useRef } from 'react';
-
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  Platform,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
-import { Alert, Animated, Image, Pressable, Text, View } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
-
 import { useIsFocused } from '@react-navigation/native';
 
-import Witch from '../assets/animation/witch.json';
-import Logo from '../assets/images/logo.png';
-import GradientButton from '../components/GradientButton';
-import Wrapper from '../components/Wrapper';
-import { deviceHeight, deviceWidth } from '../constants/Scaling';
+import DiceRoll from '../assets/animation/diceroll.json';
+import ProfilePic from '../assets/profile_placeholder.png';
+import CoinIcon from '../assets/coin_icon.png';
+import WalletIcon from '../assets/wallet.png';
 import { navigate } from '../helpers/NavigationUtil';
 import { playSound, stopSound } from '../helpers/SoundUtility';
 import { selectCurrentPositions } from '../redux/reducers/gameSelectors';
 import { resetGame } from '../redux/reducers/gameSlice';
 
-const HomeScreen = () => {
+const { width } = Dimensions.get('window');
+
+const TICKER_MESSAGES = [
+  'SU 143 has won ₹0.3 with Rank 1',
+  'Rahul K. has won ₹5.0 with Rank 1',
+  'Priya M. has won ₹2.5 with Rank 1',
+  'Amit S. has won ₹10.0 with Rank 1',
+];
+
+const HomeScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const currentPositions = useSelector(selectCurrentPositions);
   const isFocused = useIsFocused();
 
-  const witchAnimation = useRef(new Animated.Value(-deviceWidth)).current;
-  const scalXAnimation = useRef(new Animated.Value(-1)).current;
+  const tickerX = useRef(new Animated.Value(width)).current;
+  const tickerIndex = useRef(0);
 
   useEffect(() => {
-    const loopAnimation = () => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.parallel([
-            Animated.timing(witchAnimation, {
-              toValue: deviceWidth * 0.02,
-              duration: 2000,
-              useNativeDriver: true,
-            }),
-          ]),
-        ])
-      ).start();
-    };
-
-    const cleanupAnimation = () => {
-      witchAnimation.stopAnimation();
-      scalXAnimation.stopAnimation();
-    };
-
-    loopAnimation();
-    return cleanupAnimation;
-  }, [witchAnimation, scalXAnimation]);
-
-  useEffect(() => {
-    if (isFocused) {
-      playSound('home');
-    }
+    if (isFocused) playSound('home');
   }, [isFocused]);
 
-  const renderButton = useCallback(
-    (title, onPress) => (
-      <GradientButton key={title} title={title} onPress={onPress} />
-    ),
-    []
-  );
+  useEffect(() => {
+    const runTicker = () => {
+      tickerX.setValue(width);
+      Animated.timing(tickerX, {
+        toValue: -width * 1.2,
+        duration: 6000,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) {
+          tickerIndex.current = (tickerIndex.current + 1) % TICKER_MESSAGES.length;
+          runTicker();
+        }
+      });
+    };
+    runTicker();
+  }, []);
 
   const startGame = useCallback(async (isNew = false) => {
     try {
       await stopSound();
-      if (isNew) {
-        dispatch(resetGame());
-      }
+      if (isNew) dispatch(resetGame());
       navigate('LudoBoardScreen');
       playSound('game_start');
-    } catch (error) {
-      console.error('Error starting game:', error);
+    } catch (e) {
+      console.error(e);
     }
   }, [dispatch]);
 
-  const handleNewGamePress = useCallback(() => {
-    startGame(true);
-  }, [startGame]);
-
-  const handleResumePress = useCallback(() => {
-    startGame(false);
-  }, [startGame]);
-
   return (
-    <Wrapper>
-      <View
-        className="justify-center items-center mt-[10px]"
-        style={{ width: deviceWidth * 0.6, height: deviceHeight * 0.2 }}
-      >
-        <Image source={Logo} className="w-full h-full" resizeMode="contain" />
+    <LinearGradient
+      colors={['#040d24', '#0b1e4e', '#0e2a72', '#0b1e4e', '#040d24']}
+      locations={[0, 0.2, 0.5, 0.8, 1]}
+      style={styles.container}
+    >
+      <StatusBar barStyle="light-content" backgroundColor="#040d24" />
+
+      {/* Background dice */}
+      <View style={styles.bgDice} pointerEvents="none">
+        <LottieView source={DiceRoll} autoPlay loop speed={0.4} style={styles.bgDiceLottie} />
       </View>
 
-      <View className="items-center mt-5">
-        {currentPositions.length !== 0 && renderButton('RESUME', handleResumePress)}
-        {renderButton('NEW GAME', handleNewGamePress)}
-        {renderButton('VS CPU', () => Alert.alert('Coming soon! Click New Game'))}
-        {renderButton('2 VS 2', () => Alert.alert('Coming soon! Click New Game'))}
+      {/* ── Top nav bar ── */}
+      <View style={styles.topBar}>
+        {/* Avatar + name + wallet */}
+        <View style={styles.userSection}>
+          <Image source={ProfilePic} style={styles.avatar} />
+          <View style={styles.userInfo}>
+            <Text style={styles.userName} numberOfLines={1}>Player</Text>
+            <View style={styles.walletRow}>
+              <Image source={WalletIcon} style={styles.walletIcon} resizeMode="contain" />
+              <Text style={styles.walletAmount}>---</Text>
+              <TouchableOpacity style={styles.addBtn}>
+                <Ionicons name="add" size={14} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Right icons */}
+        <View style={styles.iconRow}>
+          <TouchableOpacity style={styles.iconBtn}>
+            <Ionicons name="notifications" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn}>
+            <MaterialCommunityIcons name="gamepad-variant" size={20} color="#4caf50" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('SettingsScreen')}>
+            <Ionicons name="settings-sharp" size={20} color="#ffa726" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <Animated.View
-        className="absolute"
-        style={{
-          top: '70%',
-          left: '24%',
-          transform: [
-            { translateX: witchAnimation },
-            { scaleX: scalXAnimation },
-          ],
-        }}
+      {/* ── Promo banner ── */}
+      <LinearGradient
+        colors={['#1565c0', '#1e88e5', '#42a5f5']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={styles.banner}
       >
-        <Pressable
-          onPress={() => {
-            const random = Math.floor(Math.random() * 3) + 1;
-            playSound(`girl${random}`);
-          }}
+        <Text style={styles.bannerText}>
+          Now Play with Your Friends for{'\n'}
+          <Text style={styles.bannerBold}>free & win cash</Text>
+        </Text>
+        <View style={styles.winCashBadge}>
+          <Text style={styles.winCashStar}>★</Text>
+          <Text style={styles.winCashText}>WIN{'\n'}CASH</Text>
+        </View>
+      </LinearGradient>
+
+      {/* ── LUDO SUPREME title ── */}
+      <View style={styles.titleContainer}>
+        <View>
+          <Text style={[styles.ludoText, styles.ludoTextOutline]}>LUDO</Text>
+          <Text style={[styles.ludoText, styles.ludoTextFill]}>LUDO</Text>
+        </View>
+        <Text style={styles.supremeText}>SUPREME</Text>
+      </View>
+
+      {/* ── Play Online button ── */}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => startGame(true)}
+        style={styles.btnShadow}
+      >
+        <LinearGradient
+          colors={['#ffb300', '#ff8f00', '#e65100']}
+          start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+          style={styles.playBtn}
         >
-          <LottieView
-            source={Witch}
-            autoPlay
-            loop
-            speed={1}
-            style={{ width: 250, height: 250, transform: [{ rotate: '25deg' }] }}
-          />
-        </Pressable>
-      </Animated.View>
+          <View style={styles.playBtnIconWrapper}>
+            <MaterialCommunityIcons name="earth" size={32} color="#fff" />
+          </View>
+          <Text style={styles.playBtnText}>Play Online</Text>
+        </LinearGradient>
+      </TouchableOpacity>
 
-      <Text
-        className="absolute text-white opacity-50 italic"
-        style={{ bottom: 40, fontSize: 14, fontWeight: '800' }}
+      {/* ── Play with Friends button ── */}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => {
+          if (currentPositions.length !== 0) {
+            startGame(false);
+          } else {
+            Alert.alert('Coming Soon', 'Multiplayer with friends is coming soon!');
+          }
+        }}
+        style={[styles.btnShadow, { marginTop: 14 }]}
       >
-        Created by - Kabir Mondal
-      </Text>
-    </Wrapper>
+        <LinearGradient
+          colors={['#1976d2', '#1565c0', '#0d47a1']}
+          start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+          style={styles.playBtn}
+        >
+          <View style={styles.playBtnIconWrapper}>
+            <MaterialCommunityIcons name="account-group" size={32} color="#fff" />
+          </View>
+          <Text style={styles.playBtnText}>Play with Friends</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* ── Bottom ticker ── */}
+      <View style={styles.ticker}>
+        <Image source={CoinIcon} style={styles.tickerTrophy} resizeMode="contain" />
+        <View style={styles.tickerTextArea}>
+          <Animated.Text
+            style={[styles.tickerText, { transform: [{ translateX: tickerX }] }]}
+            numberOfLines={1}
+          >
+            {TICKER_MESSAGES[tickerIndex.current]}
+          </Animated.Text>
+        </View>
+      </View>
+    </LinearGradient>
   );
 };
 
 export default HomeScreen;
 
-// ⚠️ INLINE FALLBACK: imgContainer width/height (deviceWidth * 0.6, deviceHeight * 0.2) — device-computed
-// ⚠️ INLINE FALLBACK: witchContainer top/left percentages — NativeWind % in Animated.View needs inline
-// ⚠️ INLINE FALLBACK: transform (translateX, scaleX) — animated values must be inline
-// ⚠️ INLINE FALLBACK: Witch LottieView size and rotate transform — pixel dimensions + transform
-// ⚠️ INLINE FALLBACK: artist bottom: 40, fontSize, fontWeight — mixed with NativeWind classes
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 52 : 36,
+    alignItems: 'center',
+  },
+
+  // Background dice
+  bgDice: {
+    position: 'absolute',
+    right: -60,
+    top: '35%',
+    opacity: 0.08,
+  },
+  bgDiceLottie: {
+    width: 280,
+    height: 280,
+  },
+
+  // Top nav
+  topBar: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2.5,
+    borderColor: '#ffa726',
+  },
+  userInfo: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  userName: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  walletRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  walletIcon: {
+    width: 18,
+    height: 18,
+    marginRight: 4,
+  },
+  walletAmount: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    fontWeight: '600',
+    marginRight: 6,
+  },
+  addBtn: {
+    backgroundColor: '#1976d2',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Banner
+  banner: {
+    width: width - 24,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  bannerText: {
+    color: '#fff',
+    fontSize: 13,
+    flex: 1,
+  },
+  bannerBold: {
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  winCashBadge: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  winCashStar: {
+    color: '#ffd600',
+    fontSize: 12,
+  },
+  winCashText: {
+    color: '#1565c0',
+    fontWeight: '900',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+
+  // Title
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  ludoText: {
+    fontSize: 48,
+    fontWeight: '900',
+    letterSpacing: 6,
+    position: 'absolute',
+  },
+  ludoTextOutline: {
+    color: '#1565c0',
+    top: 3,
+    left: 3,
+  },
+  ludoTextFill: {
+    color: '#64b5f6',
+    position: 'relative',
+    textShadowColor: 'rgba(100, 200, 255, 0.9)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
+  },
+  supremeText: {
+    marginTop: 52,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 8,
+  },
+
+  // Buttons
+  btnShadow: {
+    width: width - 40,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  playBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+  },
+  playBtnIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  playBtnText: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+
+  // Ticker
+  ticker: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 44,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    overflow: 'hidden',
+  },
+  tickerTrophy: {
+    width: 28,
+    height: 28,
+    marginRight: 8,
+  },
+  tickerTextArea: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  tickerText: {
+    color: '#ffd600',
+    fontSize: 14,
+    fontWeight: '700',
+    width: width * 1.5,
+  },
+});
