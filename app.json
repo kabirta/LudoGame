@@ -31,10 +31,6 @@
           "microphonePermission": false
         }
       ]
-    ],
-    "fonts": [
-      "./src/assets/fonts/Philosopher-Bold.ttf",
-      "./src/assets/fonts/Philosopher-Regular.ttf"
     ]
   }
 }

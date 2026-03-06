@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install --save-dev @react-native/metro-babel-transformer)"
+    ]
+  }
+}
