@@ -31,17 +31,17 @@ const FourTriangles = ({ player1, player2, player3, player4 }) => {
   }, [isFirework, dispatch]);
 
   const playersData = useMemo(() => [
-    { player: player1, top: 55, left: 15, pieceColor: Colors.red, translateX: 'translateX' },
-    { player: player3, bottom: 55, left: 15, pieceColor: Colors.yellow, translateX: 'translateX' },
-    { player: player2, top: 20, left: -2, pieceColor: Colors.green, translateX: 'translateY' },
-    { player: player4, top: 20, left: -2, pieceColor: Colors.blue, translateX: 'translateY' },
+    { player: player1, playerNo: 1, top: 55, left: 15, pieceColor: Colors.red, translate: 'translateX' },
+    { player: player3, playerNo: 3, bottom: 55, left: 15, pieceColor: Colors.yellow, translate: 'translateX' },
+    { player: player2, playerNo: 2, top: 20, left: -2, pieceColor: Colors.yellow, translate: 'translateY' },
+    { player: player4, playerNo: 4, top: 20, left: -2, pieceColor: Colors.blue, translate: 'translateY' },
   ], [player1, player2, player3, player4]);
 
   const renderLayerPieces = useCallback(
     (data, index) => (
       <PlayerPieces
         key={index}
-        player={data.player.filter(item => item.travelCount === 57)}
+        player={data.player.filter(item => item.isHome)}
         style={{
           top: data.top,
           bottom: data.bottom,
@@ -49,13 +49,14 @@ const FourTriangles = ({ player1, player2, player3, player4 }) => {
           right: data.right,
         }}
         pieceColor={data.pieceColor}
+        playerNo={data.playerNo}
         translate={data.translate}
       />
     ),
     [],
   );
 
-  const PlayerPieces = React.memo(({ player, style, pieceColor, translate }) => {
+  const PlayerPieces = React.memo(({ player, style, pieceColor, playerNo, translate }) => {
     return (
       <View
         className="justify-center items-center absolute"
@@ -77,7 +78,7 @@ const FourTriangles = ({ player1, player2, player3, player4 }) => {
           >
             <Pile
               cell={true}
-              player={player}
+              player={playerNo}
               onPress={() => {}}
               pieceId={piece.id}
               color={pieceColor}

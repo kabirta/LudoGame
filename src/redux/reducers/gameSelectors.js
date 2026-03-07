@@ -12,3 +12,7 @@ export const selectPocketPileSelection = (state) => state.game.pileSelectionPlay
 export const selectCellSelection = (state) => state.game.cellSelectionPlayer;
 export const selectDiceTouch = (state) => state.game.touchDiceBlock;
 export const selectFireworks = (state) => state.game.fireworks;
+export const selectBoardPath = state => state.game.boardPath;
+export const selectScores = state => state.game.scores;
+export const selectPlayerSixCount = (state, playerNo) =>
+  state.game.consecutiveSixes[`player${playerNo}`] ?? 0;

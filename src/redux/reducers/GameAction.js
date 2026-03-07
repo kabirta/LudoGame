@@ -1,19 +1,18 @@
 import {
-  SafeSpots,
-  StarSpots,
-  startingPoints,
-  turningPoints,
-  victoryStart,
-} from '../../helpers/PlotData';
+  ACTIVE_PLAYERS,
+  canMoveToken,
+  capturePawn,
+  getNextActivePlayer,
+  getPlayerNoFromPieceId,
+  HOME_POSITION_INDEX,
+  isSafeTile,
+  shouldGrantExtraRoll,
+  stepToken,
+} from '../../helpers/LudoMovementEngine';
 import {playSound} from '../../helpers/SoundUtility';
+import {selectDiceNo} from './gameSelectors';
 import {
-  selectCurrentPositions,
-  selectDiceNo,
-} from './gameSelectors';
-import {
-  announceWinners,
   disableTouch,
-  unfreezeDice,
   updateFireworks,
   updatePlayerChance,
   updateplayerPieceValue,
@@ -21,115 +20,82 @@ import {
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-function checkWinningCriteria(pieces) {
-  return pieces.every(piece => piece.travelCount >= 57);
-}
-
-export const handleForwardThunk = (playerNo, id, pos) => async (dispatch, getState) => {
-  const state = getState();
-  const plottedPieces = selectCurrentPositions(state);
-  const diceNo = selectDiceNo(state);
-
-  const piecesAtPosition = plottedPieces.filter(item => item.pos === pos);
-  const alpha = String.fromCharCode(64 + playerNo); // 1 -> 'A', 2 -> 'B'...
-
-  const piece = piecesAtPosition.find(item => item.id.startsWith(alpha));
-
-  dispatch(disableTouch());
-
-  let finalPath = piece.pos;
-  const beforePlayerPiece = state.game[`player${playerNo}`].find(item => item.id === id);
-  let travelCount = beforePlayerPiece.travelCount;
-
-  for (let i = 0; i < diceNo; i++) {
-    const updatedPosition = getState().game[`player${playerNo}`].find(item => item.id === id);
-    let path = updatedPosition.pos + 1;
-
-    if (path === turningPoints[playerNo - 1]) {
-      path = victoryStart[playerNo - 1];
-    }
-    if (path === 53) {
-      path = 1;
-    }
-
-    finalPath = path;
-    travelCount += 1;
-
-    dispatch(updateplayerPieceValue({
+const persistPawn = (dispatch, playerNo, pawn) => {
+  dispatch(
+    updateplayerPieceValue({
       playerNo: `player${playerNo}`,
-      pieceId: updatedPosition.id,
-      pos: path,
-      travelCount: travelCount,
-    }));
+      pieceId: pawn.id,
+      playerColor: pawn.playerColor,
+      position: pawn.position,
+      positionIndex: pawn.positionIndex,
+      score: pawn.score,
+      isHome: pawn.isHome,
+      pos: pawn.pos,
+      travelCount: pawn.travelCount,
+    }),
+  );
+};
 
-    playSound('pile_move');
-    await delay(200);
-  }
+export const handleForwardThunk =
+  (playerNo, pieceId) => async (dispatch, getState) => {
+    const state = getState();
+    const diceNo = selectDiceNo(state);
+    let updatedToken = state.game[`player${playerNo}`].find(
+      item => item.id === pieceId,
+    );
 
-  const updatedState = getState();
-  const updatedPlottedPieces = selectCurrentPositions(updatedState);
-  const finalPlot = updatedPlottedPieces.filter(item => item.pos === finalPath);
+    if (!updatedToken) {
+      return;
+    }
 
-  const ids = finalPlot.map(item => item.id[0]);
-  const uniqueIds = new Set(ids);
-  const areDifferentIds = uniqueIds.size > 1;
+    dispatch(disableTouch());
 
-  // Handle safe spots
-  if (SafeSpots.includes(finalPath) || StarSpots.includes(finalPath)) {
-    playSound('safe_spot');
-  }
+    if (!canMoveToken(updatedToken, diceNo)) {
+      dispatch(
+        updatePlayerChance({chancePlayer: getNextActivePlayer(playerNo)}),
+      );
+      return;
+    }
 
-  // Handle collision
-  if (
-    areDifferentIds &&
-    finalPlot.length > 0 &&
-    !SafeSpots.includes(finalPath) &&
-    !StarSpots.includes(finalPath)
-  ) {
-    const enemyPiece = finalPlot.find(p => p.id[0] !== id[0]);
-    const enemyId = enemyPiece.id[0];
-    const enemyPlayerNo = enemyId.charCodeAt(0) - 64;
-    const startingPoint = startingPoints[enemyPlayerNo - 1];
+    for (let step = 0; step < diceNo; step += 1) {
+      updatedToken = stepToken(updatedToken, playerNo);
+      persistPawn(dispatch, playerNo, updatedToken);
+      playSound('pile_move');
+      await delay(200);
+    }
 
-    playSound('collide');
+    const updatedState = getState();
+    const opponentPawns = ACTIVE_PLAYERS.filter(
+      activePlayerNo => activePlayerNo !== playerNo,
+    ).flatMap(activePlayerNo => updatedState.game[`player${activePlayerNo}`]);
 
-    // Optional: animate going back step by step
-    // (Can be removed if not needed)
-    dispatch(updateplayerPieceValue({
-      playerNo: `player${enemyPlayerNo}`,
-      pieceId: enemyPiece.id,
-      pos: 0,
-      travelCount: 0,
-    }));
+    const {capturedPawns} = capturePawn(updatedToken, opponentPawns);
 
-    dispatch(unfreezeDice());
-    return;
-  }
+    if (capturedPawns.length > 0) {
+      playSound('collide');
+      capturedPawns.forEach(capturedPawn => {
+        const capturedPlayerNo = getPlayerNoFromPieceId(capturedPawn.id);
+        if (capturedPlayerNo != null) {
+          persistPawn(dispatch, capturedPlayerNo, capturedPawn);
+        }
+      });
+    } else if (isSafeTile(updatedToken.pos)) {
+      playSound('safe_spot');
+    }
 
-  // Check for 6 or win
-  if (diceNo === 6 || travelCount === 57) {
-    dispatch(updatePlayerChance({ chancePlayer: playerNo }));
-
-    if (travelCount === 57) {
+    if (updatedToken.positionIndex === HOME_POSITION_INDEX) {
       playSound('home_win');
-
-      const finalPlayerState = getState().game[`player${playerNo}`];
-
-      if (checkWinningCriteria(finalPlayerState)) {
-        dispatch(announceWinners(playerNo));
-        playSound('cheer', true);
-        return;
-      }
-
       dispatch(updateFireworks(true));
     }
 
-    dispatch(unfreezeDice());
-    return;
-  }
-
-  // Move to next player
-  let nextPlayer = playerNo + 1;
-  if (nextPlayer > 4) nextPlayer = 1;
-  dispatch(updatePlayerChance({ chancePlayer: nextPlayer }));
-};
+    dispatch(
+      updatePlayerChance({
+        chancePlayer: shouldGrantExtraRoll({
+          diceNo,
+          capturedCount: capturedPawns.length,
+        })
+          ? playerNo
+          : getNextActivePlayer(playerNo),
+      }),
+    );
+  };

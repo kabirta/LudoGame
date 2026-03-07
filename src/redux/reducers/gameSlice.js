@@ -1,5 +1,6 @@
 import {createSlice} from '@reduxjs/toolkit';
 
+import {getPlayerScore} from '../../helpers/LudoMovementEngine';
 import {initialState} from './initialState';
 
 export const gameSlice = createSlice({
@@ -14,17 +15,39 @@ export const gameSlice = createSlice({
       state.isFirework = action.payload;
     },
     updateDiceNo: (state, action) => {
-      state.diceNo = action.payload.diceNo;
+      const {diceNo, playerNo} = action.payload;
+      state.diceNo = diceNo;
       state.isDiceRolled = true;
+
+      if (playerNo == null) {
+        return;
+      }
+
+      const playerKey = `player${playerNo}`;
+      if (state.consecutiveSixes[playerKey] !== undefined) {
+        state.consecutiveSixes[playerKey] =
+          diceNo === 6 ? state.consecutiveSixes[playerKey] + 1 : 0;
+      }
     },
     enablePileSelection: (state, action) => {
       state.touchDiceBlock = true;
       state.pileSelectionPlayer = action.payload.playerNo;
     },
     updatePlayerChance: (state, action) => {
-      state.chancePlayer = action.payload.chancePlayer;
+      const nextPlayer = action.payload.chancePlayer;
+      const previousPlayerKey = `player${state.chancePlayer}`;
+      if (
+        nextPlayer !== state.chancePlayer &&
+        state.consecutiveSixes[previousPlayerKey] !== undefined
+      ) {
+        state.consecutiveSixes[previousPlayerKey] = 0;
+      }
+
+      state.chancePlayer = nextPlayer;
       state.touchDiceBlock = false;
       state.isDiceRolled = false;
+      state.cellSelectionPlayer = -1;
+      state.pileSelectionPlayer = -1;
     },
     enableCellSelection: (state, action) => {
       state.touchDiceBlock = true;
@@ -41,19 +64,23 @@ export const gameSlice = createSlice({
 
     },
     updateplayerPieceValue: (state, action) => {
-      const { playerNo, pieceId, pos, travelCount } = action.payload;
-      const playerPieces = state[playerNo];
+      const { playerNo, pieceId, ...updates } = action.payload;
+      const playerKey = typeof playerNo === 'string' ? playerNo : `player${playerNo}`;
+      const playerPieces = state[playerKey];
+      if (!playerPieces) {
+        return;
+      }
       const piece = playerPieces.find(p=> p.id === pieceId);
       state.pileSelectionPlayer = -1;
 
       if (piece) {
-        piece.pos = pos;
-        piece.travelCount = travelCount;
+        Object.assign(piece, updates);
 
         const currentPositionIndex = state.currentPositions.findIndex(
           p => p.id ===pieceId,
         );
-        if(pos=== 0){
+        const isOnBoard = typeof piece.pos === 'number' && piece.pos > 0 && !piece.isHome;
+        if(!isOnBoard){
           if (currentPositionIndex !== -1) {
             state.currentPositions.splice(currentPositionIndex, 1);
           }
@@ -62,16 +89,19 @@ export const gameSlice = createSlice({
           if (currentPositionIndex !== -1) {
             state.currentPositions[currentPositionIndex]={
               id: pieceId,
-              pos,
+              pos: piece.pos,
             };
           } else {
             state.currentPositions.push({
               id: pieceId,
-              pos,
+              pos: piece.pos,
             });
           }
         }
 
+        if (state.scores[playerKey] !== undefined) {
+          state.scores[playerKey] = getPlayerScore(playerPieces);
+        }
       }
 
     }

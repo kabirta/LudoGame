@@ -9,11 +9,13 @@ import { useDispatch, useSelector } from 'react-redux';
 import DiceRoll from '../assets/animation/diceroll.json';
 import Arrow from '../assets/images/arrow.png';
 import { BackgroundImage } from '../helpers/GetIcons';
+import { canMoveToken, getNextActivePlayer, rollDice } from '../helpers/LudoMovementEngine';
 import { playSound } from '../helpers/SoundUtility';
 import {
   selectCurrentPlayerChance,
   selectDiceNo,
   selectDiceRolled,
+  selectPlayerSixCount,
 } from '../redux/reducers/gameSelectors';
 import {
   enableCellSelection,
@@ -21,15 +23,15 @@ import {
   updateDiceNo,
   updatePlayerChance,
 } from '../redux/reducers/gameSlice';
-import Pile from './Pile';
+import TokenPileIcon from './TokenPileIcon';
 
 const Dice = React.memo(({ color, rotate, player, data }) => {
   const dispatch = useDispatch();
   const currentPlayerChance = useSelector(selectCurrentPlayerChance);
   const isDiceRolled = useSelector(selectDiceRolled);
   const diceNo = useSelector(selectDiceNo);
+  const consecutiveSixCount = useSelector(state => selectPlayerSixCount(state, player));
   const playerPieces = useSelector(state => state.game[`player${player}`]);
-  const pileIcon = BackgroundImage.GetImage(color);
   const diceIcon = BackgroundImage.GetImage(diceNo);
 
   const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -60,52 +62,51 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
   }, [currentPlayerChance, isDiceRolled, arrowAnim]);
 
   const handleDicePress = async () => {
-    const newDiceNo = Math.floor(Math.random() * 6) + 1;
+    const newDiceNo = rollDice();
+    const nextSixCount = newDiceNo === 6 ? consecutiveSixCount + 1 : 0;
 
     playSound('dice_roll');
     setDiceRolling(true);
     await delay(800);
     setDiceRolling(false);
-    dispatch(updateDiceNo({ diceNo: newDiceNo }));
+    dispatch(updateDiceNo({ diceNo: newDiceNo, playerNo: player }));
     setDiceRolling(false);
 
-    const isAnyPieceAlive = data?.findIndex(i => i.pos != 0 && i.pos !== 0 && i.player === player) !== -1;
-    const isAnyPieceLocked = data?.findIndex(i => i.pos === 0);
+    if (nextSixCount === 3) {
+      await delay(400);
+      dispatch(updatePlayerChance({ chancePlayer: getNextActivePlayer(player) }));
+      return;
+    }
 
-    if (isAnyPieceAlive == -1) {
-      if (newDiceNo === 6) {
+    const isAnyPieceAlive = data?.some(piece => piece.positionIndex >= 0 && !piece.isHome);
+    const isAnyPieceLocked = data?.findIndex(piece => piece.positionIndex === -1 && !piece.isHome);
+
+    if (!isAnyPieceAlive) {
+      if (isAnyPieceLocked !== -1) {
         dispatch(enablePileSelection({ playerNo: player }));
       } else {
-        let chancePlayer = player + 1;
-        if (chancePlayer > 4) {
-          chancePlayer = 1;
-        }
+        const chancePlayer = getNextActivePlayer(player);
         await delay(600);
         dispatch(updatePlayerChance({ chancePlayer }));
       }
     } else {
       const canMove = playerPieces.some(
-        piece => Pile.travelCount + newDiceNo <= 57 && Pile.pos != 0,
+        piece => canMoveToken(piece, newDiceNo) && piece.positionIndex >= 0,
       );
 
-      if (
-        (!canMove && newDiceNo == 6 && isAnyPieceLocked == -1) ||
-        (!canMove && newDiceNo != 6 && isAnyPieceLocked != -1) ||
-        (!canMove && newDiceNo != 6 && isAnyPieceLocked == -1)
-      ) {
-        let chancePlayer = player + 1;
-        if (chancePlayer > 4) {
-          chancePlayer = 1;
-        }
+      if (!canMove && isAnyPieceLocked === -1) {
+        const chancePlayer = getNextActivePlayer(player);
         await delay(600);
         dispatch(updatePlayerChance({ chancePlayer: chancePlayer }));
         return;
       }
 
-      if (newDiceNo == 6) {
+      if (isAnyPieceLocked !== -1) {
         dispatch(enablePileSelection({ playerNo: player }));
       }
-      dispatch(enableCellSelection({ playerNo: player }));
+      if (canMove) {
+        dispatch(enableCellSelection({ playerNo: player }));
+      }
     }
   };
 
@@ -126,7 +127,7 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
           end={{ x: 1, y: 0.5 }}
         >
           <View className="px-[3px] py-[10px]">
-            <Image source={pileIcon} style={{ width: 35, height: 35 }} />
+            <TokenPileIcon color={color} size={35} />
           </View>
         </LinearGradient>
       </View>

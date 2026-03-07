@@ -1,6 +1,6 @@
 // ✅ EXPO CONVERTED
 import React, { memo, useCallback, useMemo } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -24,8 +24,8 @@ const Cell = ({ id, color }) => {
   );
 
   const handlePress = useCallback((playerNo, pieceId) => {
-    dispatch(handleForwardThunk(playerNo, pieceId, id));
-  }, [dispatch, id]);
+    dispatch(handleForwardThunk(playerNo, pieceId));
+  }, [dispatch]);
 
   return (
     <View
@@ -61,7 +61,7 @@ const Cell = ({ id, color }) => {
       )}
 
       {/* Render Player Pieces */}
-      <View className="absolute top-0 bottom-0 z-[99]">
+      <View pointerEvents="box-none" style={styles.piecesLayer}>
         {piecesAtPosition?.map((piece, index) => {
           const playerLetter = piece.id.slice(0, 1);
           const playerNo =
@@ -77,7 +77,7 @@ const Cell = ({ id, color }) => {
             piece.id.slice(0, 1) === 'A'
               ? Colors.red
               : piece.id.slice(0, 1) === 'B'
-              ? Colors.green
+              ? Colors.yellow
               : piece.id.slice(0, 1) === 'C'
               ? Colors.yellow
               : Colors.blue;
@@ -85,8 +85,10 @@ const Cell = ({ id, color }) => {
           return (
             <View
               key={piece.id}
-              className="absolute top-0 bottom-0 z-[99]"
+              pointerEvents="box-none"
+              className="z-[99]"
               style={{
+                ...styles.pieceWrapper,
                 transform: [
                   { scale: piecesAtPosition?.length === 1 ? 1 : 0.7 },
                   {
@@ -124,6 +126,22 @@ const Cell = ({ id, color }) => {
 };
 
 export default memo(Cell);
+
+const styles = StyleSheet.create({
+  piecesLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 99,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pieceWrapper: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 // ⚠️ INLINE FALLBACK: backgroundColor — computed from isSafeSpot ? color : 'white'
 // ⚠️ INLINE FALLBACK: transform (scale, translateX, translateY) — computed animation values

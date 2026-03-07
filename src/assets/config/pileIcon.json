@@ -1,0 +1,45 @@
+{
+  "size": 64,
+  "layout": {
+    "pieces": [
+      { "x": 18, "y": 42, "headR": 5, "bodyW": 9, "bodyH": 11, "z": 1 },
+      { "x": 30, "y": 42, "headR": 5, "bodyW": 9, "bodyH": 11, "z": 1 },
+      { "x": 42, "y": 42, "headR": 5, "bodyW": 9, "bodyH": 11, "z": 1 },
+      { "x": 24, "y": 32, "headR": 6, "bodyW": 10, "bodyH": 12, "z": 2 },
+      { "x": 36, "y": 32, "headR": 6, "bodyW": 10, "bodyH": 12, "z": 2 },
+      { "x": 30, "y": 22, "headR": 7, "bodyW": 12, "bodyH": 14, "z": 3 }
+    ]
+  },
+  "variants": {
+    "red": {
+      "head": "#ff8f70",
+      "body": "#f15a4a",
+      "stroke": "#c63f2f",
+      "shadow": "#922a1f"
+    },
+    "green": {
+      "head": "#8ee082",
+      "body": "#59c768",
+      "stroke": "#3e9f4f",
+      "shadow": "#296d37"
+    },
+    "yellow": {
+      "head": "#ffe58a",
+      "body": "#f7c84a",
+      "stroke": "#ca9a24",
+      "shadow": "#8f6d18"
+    },
+    "blue": {
+      "head": "#98d5ff",
+      "body": "#57b4ff",
+      "stroke": "#2a8de0",
+      "shadow": "#1f68a3"
+    },
+    "default": {
+      "head": "#dcdcdc",
+      "body": "#bfbfbf",
+      "stroke": "#8f8f8f",
+      "shadow": "#6f6f6f"
+    }
+  }
+}

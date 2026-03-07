@@ -13,7 +13,7 @@ import Trophy from '../assets/animation/trophy.json';
 import { resetAndNavigate } from '../helpers/NavigationUtil';
 import { colorPlayer } from '../helpers/PlotData';
 import { playSound } from '../helpers/SoundUtility';
-import { announceWinner, resetGame } from '../redux/reducers/gameSlice';
+import { announceWinners, resetGame } from '../redux/reducers/gameSlice';
 import GradientButton from './GradientButton';
 import Pile from './Pile';
 
@@ -27,13 +27,13 @@ const WinModal = ({ winner }) => {
 
   const handleNewGame = () => {
     dispatch(resetGame());
-    dispatch(announceWinner(null));
+    dispatch(announceWinners(null));
     playSound('game_start');
   };
 
   const handleHome = () => {
     dispatch(resetGame());
-    dispatch(announceWinner(null));
+    dispatch(announceWinners(null));
     resetAndNavigate('HomeScreen');
   };
 

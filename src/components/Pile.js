@@ -1,15 +1,12 @@
 // ✅ EXPO CONVERTED
 import React, { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 
-import { Animated, Easing, Image, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, TouchableOpacity, View } from 'react-native';
 import { Circle, Svg } from 'react-native-svg';
 import { useSelector } from 'react-redux';
 
-import PileBlue from '../assets/images/piles/blue.png';
-import PileGreen from '../assets/images/piles/green.png';
-import PileRed from '../assets/images/piles/red.png';
-import PileYellow from '../assets/images/piles/yellow.png';
-import { Colors } from '../constants/Colors';
+import { canMoveToken } from '../helpers/LudoMovementEngine';
+import TokenPileIcon from './TokenPileIcon';
 import {
   selectCellSelection,
   selectDiceNo,
@@ -34,23 +31,8 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
 
   const isForwardable = useCallback(() => {
     const piece = playerPieces?.find(item => item.id === pieceId);
-    return piece && piece.travelCount + diceNo <= 57;
+    return piece && canMoveToken(piece, diceNo);
   }, [playerPieces, pieceId, diceNo]);
-
-  const getPileImage = useMemo(() => {
-    switch (color) {
-      case Colors.green:
-        return PileGreen;
-      case Colors.red:
-        return PileRed;
-      case Colors.blue:
-        return PileBlue;
-      case Colors.yellow:
-        return PileYellow;
-      default:
-        return PileGreen;
-    }
-  }, [color]);
 
   useEffect(() => {
     const rotateAnimation = Animated.loop(
@@ -73,6 +55,14 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
       outputRange: ['0deg', '360deg'],
     }),
     [rotation],
+  );
+
+  const tokenOffsetStyle = useMemo(
+    () =>
+      cell
+        ? { alignItems: 'center', justifyContent: 'center' }
+        : { position: 'absolute', top: -18 },
+    [cell],
   );
 
   return (
@@ -114,10 +104,9 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
         )}
       </View>
 
-      <Image
-        source={getPileImage}
-        style={{ width: 25, height: 25, position: 'absolute', top: -18 }}
-      />
+      <View style={tokenOffsetStyle}>
+        <TokenPileIcon color={color} size={25} />
+      </View>
     </TouchableOpacity>
   );
 };
@@ -126,5 +115,5 @@ export default memo(Pile);
 
 // ⚠️ INLINE FALLBACK: hollowCircle width/height (15x15) — exact pixel dimensions for game piece indicator
 // ⚠️ INLINE FALLBACK: dashedCircle width/height (30x30) — SVG container sizing
-// ⚠️ INLINE FALLBACK: Image top: -18, width/height 25x25 — pixel-critical pile icon positioning
+// ⚠️ INLINE FALLBACK: icon top: -18, size 25x25 — pixel-critical pile icon positioning
 // ⚠️ INLINE FALLBACK: transform rotate (rotateInterpolate) — animated rotation must be inline
