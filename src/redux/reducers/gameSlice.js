@@ -7,7 +7,10 @@ export const gameSlice = createSlice({
   name: 'game',
   initialState: initialState,
   reducers: {
-    resetGame: () => initialState,
+    resetGame: state => ({
+      ...initialState,
+      settings: state.settings ?? initialState.settings,
+    }),
     announceWinners: (state,action) => {
       state.winner = action.payload;
     },
@@ -52,6 +55,16 @@ export const gameSlice = createSlice({
     enableCellSelection: (state, action) => {
       state.touchDiceBlock = true;
       state.cellSelectionPlayer = action.payload.playerNo;
+    },
+    updateGameSetting: (state, action) => {
+      if (!state.settings) {
+        state.settings = {...initialState.settings};
+      }
+
+      const {key, value} = action.payload;
+      if (state.settings[key] !== undefined) {
+        state.settings[key] = value;
+      }
     },
     unfreezeDice: (state) => {
       state.touchDiceBlock = false;
@@ -116,6 +129,7 @@ export const {
   enablePileSelection, 
   updatePlayerChance,
   enableCellSelection, 
+  updateGameSetting,
   updateplayerPieceValue ,
   unfreezeDice, 
   disableTouch} = gameSlice.actions;

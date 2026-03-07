@@ -1,7 +1,12 @@
 // ✅ EXPO CONVERTED — react-native-sound-player → expo-av
 import { Audio } from 'expo-av';
 
+import {store} from '../redux/store';
+
 let currentSound = null;
+
+const getSoundSettings = () => store.getState()?.game?.settings ?? {};
+const isSoundEnabled = () => getSoundSettings().soundEnabled ?? true;
 
 export const stopSound = async () => {
   if (currentSound) {
@@ -17,6 +22,9 @@ export const stopSound = async () => {
 
 export const playSound = async (soundName) => {
   try {
+    if (!isSoundEnabled()) {
+      return;
+    }
     await stopSound();
     const soundPath = getSoundPath(soundName);
     const { sound } = await Audio.Sound.createAsync(soundPath);

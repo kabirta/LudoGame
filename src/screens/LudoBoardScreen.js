@@ -23,7 +23,6 @@ import {Ionicons} from '@expo/vector-icons';
 import {useIsFocused} from '@react-navigation/native';
 
 import MenuIcon from '../assets/images/menu.png';
-import StartGame from '../assets/images/start.png';
 import ProfilePlaceholder from '../assets/profile_placeholder.png';
 import Dice from '../components/Dice';
 import FourTriangles from '../components/FourTriangles';
@@ -222,17 +221,34 @@ const LudoBoardScreen = () => {
         </View>
 
         {showStartImage && (
-          <Animated.Image
-            source={StartGame}
+          <Animated.View
             style={{
-              width: boardSize,
-              height: boardSize * 0.32,
+              minWidth: boardSize * 0.56,
               position: 'absolute',
               opacity,
               alignSelf: 'center',
-              top: boardSize * 0.38,
+              top: boardSize * 0.42,
+              backgroundColor: 'rgba(7, 20, 59, 0.9)',
+              borderWidth: 1,
+              borderColor: '#7ea7ff',
+              borderRadius: 18,
+              paddingHorizontal: 22,
+              paddingVertical: 12,
             }}
-          />
+            pointerEvents="none"
+          >
+            <Text
+              style={{
+                color: '#ffffff',
+                fontSize: 22,
+                fontWeight: '800',
+                textAlign: 'center',
+                letterSpacing: 0.4,
+              }}
+            >
+              Waiting for opponent
+            </Text>
+          </Animated.View>
         )}
 
         <View className="mt-auto w-full px-2" pointerEvents={isDiceTouch ? 'none' : 'auto'}>

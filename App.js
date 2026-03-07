@@ -1,5 +1,6 @@
 // ✅ EXPO CONVERTED
 import './global.css';
+import './src/helpers/BackHandlerCompat';
 
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';

@@ -51,6 +51,12 @@ export const initialState = {
         player3: 0,
         player4: 0,
     },
+    settings: {
+        musicEnabled: false,
+        soundEnabled: true,
+        vibrationEnabled: true,
+        emojisEnabled: true,
+    },
     chancePlayer: 1,
     diceNo: 1,
     isDiceRolled: false,

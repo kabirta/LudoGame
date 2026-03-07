@@ -16,3 +16,4 @@ export const selectBoardPath = state => state.game.boardPath;
 export const selectScores = state => state.game.scores;
 export const selectPlayerSixCount = (state, playerNo) =>
   state.game.consecutiveSixes[`player${playerNo}`] ?? 0;
+export const selectGameSettings = state => state.game.settings;

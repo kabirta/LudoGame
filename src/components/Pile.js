@@ -14,6 +14,8 @@ import {
 } from '../redux/reducers/gameSelectors';
 
 const Pile = ({ cell, pieceId, player, color, onPress }) => {
+  const defaultPileSize = 50;
+  const enabledPileSize = 125;
   const rotation = useRef(new Animated.Value(0)).current;
   const currentPlayerPileSelection = useSelector(selectPocketPileSelection);
   const currentPlayerCellSelection = useSelector(selectCellSelection);
@@ -61,9 +63,10 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
     () =>
       cell
         ? { alignItems: 'center', justifyContent: 'center' }
-        : { position: 'absolute', top: -18 },
-    [cell],
+        : { position: 'absolute', top: isPileEnabled ? -44 : -18 },
+    [cell, isPileEnabled],
   );
+  const showSelectionIndicator = cell ? isCellEnabled && isForwardable() : isPileEnabled;
 
   return (
     <TouchableOpacity
@@ -72,12 +75,12 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
       disabled={!(cell ? isCellEnabled && isForwardable() : isPileEnabled)}
       onPress={onPress}
     >
-      <View
-        className="absolute rounded-[25px] border-2 border-black justify-center items-center"
-        style={{ width: 15, height: 15 }}
-      >
-        {(cell ? isCellEnabled && isForwardable() : isPileEnabled) && (
-          <View style={{ width: 30, height: 30, alignSelf: 'center', justifyContent: 'center' }}>
+      {showSelectionIndicator && (
+        <View
+          className="absolute justify-center items-center"
+          style={{ width: 30, height: 30 }}
+        >
+          <View style={{ width: 30, height: 60, alignSelf: 'center', justifyContent: 'center' }}>
             <Animated.View
               style={{
                 width: 30,
@@ -87,25 +90,14 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
                 transform: [{ rotate: rotateInterpolate }],
               }}
             >
-              <Svg height="18" width="18">
-                <Circle
-                  cx="9"
-                  cy="9"
-                  r="8"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeDasharray="2, 2"
-                  strokeDashoffset="0"
-                  fill="transparent"
-                />
-              </Svg>
+              
             </Animated.View>
           </View>
-        )}
-      </View>
+        </View>
+      )}
 
       <View style={tokenOffsetStyle}>
-        <TokenPileIcon color={color} size={25} />
+        <TokenPileIcon color={color} size={isPileEnabled ? enabledPileSize : defaultPileSize} />
       </View>
     </TouchableOpacity>
   );
@@ -113,7 +105,6 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
 
 export default memo(Pile);
 
-// ⚠️ INLINE FALLBACK: hollowCircle width/height (15x15) — exact pixel dimensions for game piece indicator
 // ⚠️ INLINE FALLBACK: dashedCircle width/height (30x30) — SVG container sizing
 // ⚠️ INLINE FALLBACK: icon top: -18, size 25x25 — pixel-critical pile icon positioning
 // ⚠️ INLINE FALLBACK: transform rotate (rotateInterpolate) — animated rotation must be inline

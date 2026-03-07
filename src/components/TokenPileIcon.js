@@ -1,9 +1,12 @@
 import React, {memo, useMemo} from 'react';
 import Svg, {
+  Circle,
   Defs,
   Ellipse,
   LinearGradient,
   Path,
+  RadialGradient,
+  Rect,
   Stop,
 } from 'react-native-svg';
 
@@ -21,67 +24,112 @@ const COLOR_VARIANT_MAP = {
 };
 
 const PILE_VARIANTS = {
-  green: {
-    idPrefix: 'g',
-    shadow: '#0b5200',
-    bodyStops: [
-      {offset: '0%', color: '#7CFF63'},
-      {offset: '45%', color: '#2ED400'},
-      {offset: '100%', color: '#0F7500'},
+  yellow: {
+    idPrefix: 'y',
+    shadowColor: '#5a3e00',
+    headStops: [
+      {offset: '0%', color: '#FFE97A'},
+      {offset: '40%', color: '#FFD000'},
+      {offset: '100%', color: '#A07800'},
     ],
+    bodyStops: [
+      {offset: '0%', color: '#B08800'},
+      {offset: '25%', color: '#FFD000'},
+      {offset: '55%', color: '#FFE566'},
+      {offset: '100%', color: '#A07800'},
+    ],
+    baseStops: [
+      {offset: '0%', color: '#FFD000'},
+      {offset: '100%', color: '#8C6A00'},
+    ],
+    neckColor: '#FFD000',
+    neckHighlight: '#FFE566',
   },
   red: {
     idPrefix: 'r',
-    shadow: '#400000',
-    bodyStops: [
-      {offset: '0%', color: '#FF8A8A'},
-      {offset: '45%', color: '#E00000'},
-      {offset: '100%', color: '#6B0000'},
+    shadowColor: '#3a0000',
+    headStops: [
+      {offset: '0%', color: '#FFB3B3'},
+      {offset: '40%', color: '#E00000'},
+      {offset: '100%', color: '#7A0000'},
     ],
+    bodyStops: [
+      {offset: '0%', color: '#8B0000'},
+      {offset: '25%', color: '#E00000'},
+      {offset: '55%', color: '#FF6666'},
+      {offset: '100%', color: '#7A0000'},
+    ],
+    baseStops: [
+      {offset: '0%', color: '#E00000'},
+      {offset: '100%', color: '#5C0000'},
+    ],
+    neckColor: '#E00000',
+    neckHighlight: '#FF6666',
+  },
+  green: {
+    idPrefix: 'g',
+    shadowColor: '#0a2a00',
+    headStops: [
+      {offset: '0%', color: '#B3FFB3'},
+      {offset: '40%', color: '#00C800'},
+      {offset: '100%', color: '#005500'},
+    ],
+    bodyStops: [
+      {offset: '0%', color: '#004A00'},
+      {offset: '25%', color: '#00C800'},
+      {offset: '55%', color: '#7CFF63'},
+      {offset: '100%', color: '#005500'},
+    ],
+    baseStops: [
+      {offset: '0%', color: '#00C800'},
+      {offset: '100%', color: '#003300'},
+    ],
+    neckColor: '#00C800',
+    neckHighlight: '#7CFF63',
   },
   blue: {
     idPrefix: 'b',
-    shadow: '#001f4d',
-    bodyStops: [
-      {offset: '0%', color: '#8BD2FF'},
-      {offset: '45%', color: '#0077E0'},
-      {offset: '100%', color: '#002E6B'},
+    shadowColor: '#00102a',
+    headStops: [
+      {offset: '0%', color: '#B3D9FF'},
+      {offset: '40%', color: '#0077E0'},
+      {offset: '100%', color: '#001A5C'},
     ],
-  },
-  yellow: {
-    idPrefix: 'y',
-    shadow: '#6b5200',
     bodyStops: [
-      {offset: '0%', color: '#FFF27A'},
-      {offset: '45%', color: '#FFD400'},
-      {offset: '100%', color: '#9C7B00'},
+      {offset: '0%', color: '#001f4d'},
+      {offset: '25%', color: '#0077E0'},
+      {offset: '55%', color: '#8BD2FF'},
+      {offset: '100%', color: '#001A5C'},
     ],
+    baseStops: [
+      {offset: '0%', color: '#0077E0'},
+      {offset: '100%', color: '#001040'},
+    ],
+    neckColor: '#0077E0',
+    neckHighlight: '#8BD2FF',
   },
   default: {
     idPrefix: 'd',
-    shadow: '#2f2f2f',
-    bodyStops: [
+    shadowColor: '#2f2f2f',
+    headStops: [
       {offset: '0%', color: '#f4f4f4'},
-      {offset: '45%', color: '#a5a5a5'},
+      {offset: '40%', color: '#a5a5a5'},
       {offset: '100%', color: '#5f5f5f'},
     ],
+    bodyStops: [
+      {offset: '0%', color: '#5f5f5f'},
+      {offset: '25%', color: '#a5a5a5'},
+      {offset: '55%', color: '#d0d0d0'},
+      {offset: '100%', color: '#5f5f5f'},
+    ],
+    baseStops: [
+      {offset: '0%', color: '#a5a5a5'},
+      {offset: '100%', color: '#3f3f3f'},
+    ],
+    neckColor: '#a5a5a5',
+    neckHighlight: '#d0d0d0',
   },
 };
-
-const HIGHLIGHT_STOPS = [
-  {offset: '0%', color: 'white', opacity: 0.9},
-  {offset: '100%', color: 'white', opacity: 0},
-];
-
-const PILE_BODY_PATH = `
-M30 170
-C30 145 45 120 52 105
-C56 97 56 88 50 80
-C45 73 45 62 60 62
-C75 62 75 73 70 80
-C64 88 64 97 68 105
-C75 120 90 145 90 170 Z
-`;
 
 const TokenPileIcon = ({color, size = 24}) => {
   const variant = useMemo(() => {
@@ -90,8 +138,11 @@ const TokenPileIcon = ({color, size = 24}) => {
     return PILE_VARIANTS[variantKey];
   }, [color]);
 
-  const bodyGradientId = `${variant.idPrefix}Body`;
-  const highlightGradientId = `${variant.idPrefix}Highlight`;
+  const p = variant.idPrefix;
+  const headGradId = `${p}Head`;
+  const bodyGradId = `${p}Body`;
+  const baseGradId = `${p}Base`;
+  const headGlassId = `${p}Glass`;
 
   return (
     <Svg
@@ -101,49 +152,79 @@ const TokenPileIcon = ({color, size = 24}) => {
       preserveAspectRatio="xMidYMid meet"
     >
       <Defs>
-        <LinearGradient id={bodyGradientId} x1="0" y1="0" x2="0" y2="1">
-          {variant.bodyStops.map(stop => (
-            <Stop
-              key={stop.offset}
-              offset={stop.offset}
-              stopColor={stop.color}
-            />
+        <RadialGradient id={headGradId} cx="38%" cy="32%" r="60%">
+          {variant.headStops.map(s => (
+            <Stop key={s.offset} offset={s.offset} stopColor={s.color} />
+          ))}
+        </RadialGradient>
+
+        <LinearGradient id={bodyGradId} x1="0" y1="0" x2="1" y2="0">
+          {variant.bodyStops.map(s => (
+            <Stop key={s.offset} offset={s.offset} stopColor={s.color} />
           ))}
         </LinearGradient>
 
-        <LinearGradient
-          id={highlightGradientId}
-          x1="0"
-          y1="0"
-          x2="1"
-          y2="1"
-        >
-          {HIGHLIGHT_STOPS.map(stop => (
-            <Stop
-              key={stop.offset}
-              offset={stop.offset}
-              stopColor={stop.color}
-              stopOpacity={stop.opacity}
-            />
+        <LinearGradient id={baseGradId} x1="0" y1="0" x2="0" y2="1">
+          {variant.baseStops.map(s => (
+            <Stop key={s.offset} offset={s.offset} stopColor={s.color} />
           ))}
         </LinearGradient>
+
+        <RadialGradient id={headGlassId} cx="35%" cy="28%" r="45%">
+          <Stop offset="0%" stopColor="white" stopOpacity="0.75" />
+          <Stop offset="60%" stopColor="white" stopOpacity="0.1" />
+          <Stop offset="100%" stopColor="white" stopOpacity="0" />
+        </RadialGradient>
+
       </Defs>
 
-      <Ellipse
-        cx="60"
-        cy="175"
-        rx="42"
-        ry="16"
-        fill={variant.shadow}
-        opacity={0.25}
+      {/* Ground shadow */}
+      <Ellipse cx="60" cy="183" rx="34" ry="8" fill={variant.shadowColor} opacity={0.28} />
+
+      {/* Base platform */}
+      <Rect x="24" y="162" width="72" height="14" rx="7" fill={`url(#${baseGradId})`} />
+      <Rect x="26" y="162" width="68" height="3" rx="3" fill="white" opacity={0.22} />
+
+      {/* Stem */}
+      <Path
+        d="M46 162 C46 140 50 128 54 118 L66 118 C70 128 74 140 74 162 Z"
+        fill={`url(#${bodyGradId})`}
       />
-      <Path d={PILE_BODY_PATH} fill={`url(#${bodyGradientId})`} />
+      <Rect x="56" y="120" width="8" height="40" rx="4" fill="white" opacity={0.18} />
+
+      {/* Neck collar */}
+      <Ellipse cx="60" cy="118" rx="14" ry="5" fill={variant.neckColor} />
+      <Ellipse cx="60" cy="117" rx="13" ry="3.5" fill={variant.neckHighlight} />
+
+      {/* Head sphere */}
+      <Circle cx="60" cy="88" r="30" fill={`url(#${headGradId})`} />
+      <Circle cx="60" cy="88" r="30" fill={`url(#${headGlassId})`} />
+
+      {/* Specular highlights */}
       <Ellipse
-        cx="48"
-        cy="90"
-        rx="10"
-        ry="60"
-        fill={`url(#${highlightGradientId})`}
+        cx="51"
+        cy="72"
+        rx="7"
+        ry="5"
+        fill="white"
+        opacity={0.55}
+        transform="rotate(-15 51 72)"
+      />
+      <Ellipse
+        cx="49"
+        cy="70"
+        rx="3"
+        ry="2"
+        fill="white"
+        opacity={0.9}
+        transform="rotate(-15 49 70)"
+      />
+
+      {/* Bottom shadow on head */}
+      <Path
+        d="M34 98 A30 30 0 0 0 86 98 Q60 115 34 98 Z"
+        fill={variant.shadowColor}
+        opacity={0.18}
       />
     </Svg>
   );

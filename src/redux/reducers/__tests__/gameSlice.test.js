@@ -1,4 +1,9 @@
-import reducer, {updateDiceNo, updatePlayerChance} from '../gameSlice';
+import reducer, {
+  resetGame,
+  updateDiceNo,
+  updateGameSetting,
+  updatePlayerChance,
+} from '../gameSlice';
 
 describe('gameSlice six-roll rules', () => {
   it('tracks consecutive sixes for the active player', () => {
@@ -28,5 +33,26 @@ describe('gameSlice six-roll rules', () => {
 
     expect(state.consecutiveSixes.player1).toBe(0);
     expect(state.chancePlayer).toBe(2);
+  });
+
+  it('stores in-game settings toggles in persisted state', () => {
+    const state = reducer(
+      undefined,
+      updateGameSetting({key: 'musicEnabled', value: true}),
+    );
+
+    expect(state.settings.musicEnabled).toBe(true);
+    expect(state.settings.soundEnabled).toBe(true);
+  });
+
+  it('keeps settings when the game board is reset', () => {
+    let state = reducer(
+      undefined,
+      updateGameSetting({key: 'musicEnabled', value: true}),
+    );
+    state = reducer(state, resetGame());
+
+    expect(state.settings.musicEnabled).toBe(true);
+    expect(state.settings.soundEnabled).toBe(true);
   });
 });
