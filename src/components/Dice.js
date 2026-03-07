@@ -25,7 +25,7 @@ import {
 } from '../redux/reducers/gameSlice';
 import TokenPileIcon from './TokenPileIcon';
 
-const Dice = React.memo(({ color, rotate, player, data }) => {
+const Dice = React.memo(({ color, rotate, player, data, compact = false, bubble = false }) => {
   const dispatch = useDispatch();
   const currentPlayerChance = useSelector(selectCurrentPlayerChance);
   const isDiceRolled = useSelector(selectDiceRolled);
@@ -109,6 +109,151 @@ const Dice = React.memo(({ color, rotate, player, data }) => {
       }
     }
   };
+
+  const canInteract = currentPlayerChance === player;
+
+  if (bubble) {
+    return (
+      <View
+        className="justify-center items-center flex-row"
+        style={{ transform: [{ scaleX: rotate ? -1 : 1 }] }}
+      >
+        <View style={{ paddingLeft: 14 }}>
+          <View
+            style={{
+              position: 'absolute',
+              left: 3,
+              top: 22,
+              width: 0,
+              height: 0,
+              borderTopWidth: 12,
+              borderBottomWidth: 12,
+              borderRightWidth: 18,
+              borderTopColor: 'transparent',
+              borderBottomColor: 'transparent',
+              borderRightColor: canInteract ? '#486cdf' : '#324b99',
+            }}
+          />
+
+          <View
+            style={{
+              width: 94,
+              height: 94,
+              borderRadius: 22,
+              padding: 6,
+              backgroundColor: canInteract ? '#486cdf' : '#324b99',
+              borderWidth: 1.5,
+              borderColor: canInteract ? '#6b8cff' : '#4a63ad',
+            }}
+          >
+            <View
+              style={{
+                flex: 1,
+                borderRadius: 17,
+                backgroundColor: '#d6d9ec',
+                borderWidth: 4,
+                borderColor: '#7a81b1',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: canInteract ? 1 : 0.68,
+              }}
+            >
+              {canInteract && !diceRolling ? (
+                <TouchableOpacity
+                  disabled={diceRolling}
+                  activeOpacity={0.45}
+                  onPress={handleDicePress}
+                >
+                  <Image source={diceIcon} style={{ width: 56, height: 56 }} />
+                </TouchableOpacity>
+              ) : (
+                <Image source={diceIcon} style={{ width: 56, height: 56 }} />
+              )}
+            </View>
+          </View>
+
+          {canInteract && diceRolling ? (
+            <LottieView
+              source={DiceRoll}
+              style={{
+                height: 104,
+                width: 104,
+                zIndex: 99,
+                position: 'absolute',
+                top: -4,
+                left: 6,
+              }}
+              autoPlay
+              loop
+              cacheComposition
+              hardwareAccelerationAndroid
+            />
+          ) : null}
+        </View>
+      </View>
+    );
+  }
+
+  if (compact) {
+    return (
+      <View
+        className="justify-center items-center flex-row"
+        style={{ transform: [{ scaleX: rotate ? -1 : 1 }] }}
+      >
+        <View
+          style={{
+            borderWidth: 6,
+            borderColor: canInteract ? '#39ff34' : '#3752a2',
+            borderRadius: 24,
+            padding: 6,
+            backgroundColor: '#152761',
+          }}
+        >
+          <View
+            style={{
+              width: 86,
+              height: 86,
+              borderRadius: 18,
+              backgroundColor: '#f1f1f4',
+              borderWidth: 5,
+              borderColor: '#1b265f',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {canInteract && !diceRolling ? (
+              <TouchableOpacity
+                disabled={diceRolling}
+                activeOpacity={0.45}
+                onPress={handleDicePress}
+              >
+                <Image source={diceIcon} style={{ width: 58, height: 58 }} />
+              </TouchableOpacity>
+            ) : (
+              <Image source={diceIcon} style={{ width: 58, height: 58 }} />
+            )}
+          </View>
+        </View>
+
+        {canInteract && !isDiceRolled ? (
+          <Animated.View style={{ marginLeft: 8, transform: [{ translateX: arrowAnim }] }}>
+            <Image source={Arrow} style={{ width: 34, height: 22 }} />
+          </Animated.View>
+        ) : null}
+
+        {canInteract && diceRolling ? (
+          <LottieView
+            source={DiceRoll}
+            style={{ height: 110, width: 110, zIndex: 99, position: 'absolute' }}
+            autoPlay
+            loop
+            cacheComposition
+            hardwareAccelerationAndroid
+          />
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View

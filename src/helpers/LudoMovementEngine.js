@@ -13,19 +13,19 @@ const HOME_LANE_LENGTH = 5;
 
 export const PLAYER_CONFIGS = {
   1: {
-    playerColor: 'red',
+    playerColor: 'yellow',
     startTile: 1,
     homeEntryTile: 51,
     homeLaneStart: 111,
   },
   2: {
-    playerColor: 'yellow',
+    playerColor: 'red',
     startTile: 27,
     homeEntryTile: 25,
     homeLaneStart: 331,
   },
   3: {
-    playerColor: 'yellow',
+    playerColor: 'green',
     startTile: 27,
     homeEntryTile: 25,
     homeLaneStart: 331,

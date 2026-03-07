@@ -21,8 +21,16 @@ import {
 
 import {Ionicons} from '@expo/vector-icons';
 import {useIsFocused} from '@react-navigation/native';
+import Svg, {
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Pattern,
+  Path,
+  Polygon as SvgPolygon,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 
-import MenuIcon from '../assets/images/menu.png';
 import ProfilePlaceholder from '../assets/profile_placeholder.png';
 import Dice from '../components/Dice';
 import FourTriangles from '../components/FourTriangles';
@@ -53,6 +61,116 @@ import {
 } from '../redux/reducers/gameSelectors';
 import {announceWinners} from '../redux/reducers/gameSlice';
 
+const BoardBackdrop = () => (
+  <View
+    pointerEvents="none"
+    style={{
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      overflow: 'hidden',
+      backgroundColor: '#0a2c88',
+    }}
+  >
+    <LinearGradient
+      colors={['#123ca9', '#0d2e8b', '#081f66']}
+      style={{position: 'absolute', top: 0, right: 0, bottom: 0, left: 0}}
+    />
+    <Svg
+      width="100%"
+      height="100%"
+      style={{position: 'absolute', top: 0, right: 0, bottom: 0, left: 0}}
+    >
+      <Defs>
+        <Pattern id="boardPattern" patternUnits="userSpaceOnUse" width="44" height="72">
+          <SvgPolygon
+            points="0,72 22,12 44,72"
+            fill="rgba(4, 19, 77, 0.23)"
+          />
+          <SvgPolygon
+            points="0,0 22,56 44,0"
+            fill="rgba(255,255,255,0.03)"
+          />
+        </Pattern>
+      </Defs>
+      <Rect width="100%" height="100%" fill="url(#boardPattern)" />
+      <Rect y="12%" width="100%" height="11%" fill="rgba(255,255,255,0.04)" />
+      <Rect y="42%" width="100%" height="11%" fill="rgba(255,255,255,0.04)" />
+      <Rect y="72%" width="100%" height="11%" fill="rgba(255,255,255,0.04)" />
+    </Svg>
+  </View>
+);
+
+const PrizePoolBanner = () => {
+  const bannerHeight = 52;
+  return (
+    <View style={{flex: 1, height: bannerHeight, marginHorizontal: 8}}>
+      <Svg
+        width="100%"
+        height={bannerHeight}
+        viewBox="0 0 300 126"
+        preserveAspectRatio="none"
+        style={{position: 'absolute', top: 0, left: 0, right: 0}}
+      >
+        <Defs>
+          <SvgLinearGradient id="prizeBannerGradient" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor="#2f6cff" />
+            <Stop offset="52%" stopColor="#204dc7" />
+            <Stop offset="100%" stopColor="#17379a" />
+          </SvgLinearGradient>
+        </Defs>
+        <Path
+          d="M18 6 H282 L242 120 H58 Z"
+          fill="url(#prizeBannerGradient)"
+          stroke="#8ba9ff"
+          strokeWidth="6"
+        />
+        <Path d="M30 18 H270 L236 109 H64 Z" fill="rgba(255,255,255,0.07)" />
+      </Svg>
+      <View
+        style={{
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 8,
+        }}
+      >
+        <Ionicons name="trophy" size={22} color="#f9b32b" style={{marginRight: 8}} />
+        <View>
+          <Text
+            style={{
+              color: '#ffffff',
+              fontSize: 11,
+              fontWeight: '900',
+              textShadowColor: 'rgba(0,0,0,0.35)',
+              textShadowOffset: {width: 0, height: 2},
+              textShadowRadius: 4,
+            }}
+          >
+            Prize Pool
+          </Text>
+          <Text
+            style={{
+              color: '#ffe485',
+              fontSize: 15,
+              fontWeight: '900',
+              marginTop: -1,
+              textShadowColor: 'rgba(0,0,0,0.35)',
+              textShadowOffset: {width: 0, height: 2},
+              textShadowRadius: 4,
+            }}
+          >
+            ₹0.15
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 const LudoBoardScreen = () => {
   const dispatch = useDispatch();
   const player1 = useSelector(selectPlayer1);
@@ -68,10 +186,17 @@ const LudoBoardScreen = () => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [showStartImage, setShowStartImage] = useState(false);
   const boardSize = Math.min(deviceWidth * 0.96, deviceHeight * 0.58);
+  const opponentAvatarSize = Math.min(deviceWidth * 0.17, 72);
+  const firstMoverAvatarSize = Math.min(deviceWidth * 0.24, 94);
+  const footerNameWidth = Math.min(deviceWidth * 0.42, 166);
 
   const handleMenuPress = useCallback(() => {
     playSound('ui');
     setMenuVisible(true);
+  }, []);
+
+  const handleTopControlPress = useCallback(() => {
+    playSound('ui');
   }, []);
 
   const handleCloseMenu = useCallback(() => {
@@ -128,148 +253,387 @@ const LudoBoardScreen = () => {
 
   return (
     <Wrapper>
-      <View className="flex-1 w-full px-2 pt-2 pb-3">
-        <View className="w-full px-2">
-          <View className="flex-row items-center justify-between">
+      <View className="flex-1 w-full">
+        <BoardBackdrop />
+        <View className="flex-1 w-full px-2 pt-2 pb-3">
+        {/* ── TOP HEADER ── */}
+        <View style={{paddingHorizontal: 4}}>
+          {/* Row 1: left controls + prize banner */}
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <TouchableOpacity
-              className="rounded-full bg-[#2e63ba]/60 items-center justify-center"
-              style={{ width: 46, height: 46 }}
+              activeOpacity={0.82}
               onPress={handleMenuPress}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: 'rgba(191,209,255,0.18)',
+                backgroundColor: 'rgba(137,165,240,0.18)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <Image source={MenuIcon} style={{ width: 28, height: 20 }} resizeMode="contain" />
+              <Ionicons name="settings-sharp" size={22} color="#ffffff" />
+            </TouchableOpacity>
+
+            <View style={{width: 8}} />
+
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={handleTopControlPress}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: 'rgba(191,209,255,0.18)',
+                backgroundColor: 'rgba(137,165,240,0.18)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="wifi" size={22} color="#39ef49" />
+            </TouchableOpacity>
+
+            <PrizePoolBanner />
+          </View>
+
+          <View
+            style={{
+              marginTop: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              alignSelf: 'flex-end',
+            }}
+          >
+            <LinearGradient
+              colors={['#0b1f5d', '#081844']}
+              start={{x: 0, y: 0.5}}
+              end={{x: 1, y: 0.5}}
+              style={{
+                height: 42,
+                paddingHorizontal: 8,
+                borderRadius: 21,
+                borderWidth: 1.5,
+                borderColor: '#2e55b1',
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <View
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: '#eef4ff',
+                  borderWidth: 1.5,
+                  borderColor: '#6fa3ff',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="time-outline" size={16} color="#4b86ff" />
+              </View>
+              <Text
+                style={{
+                  marginLeft: 6,
+                  color: '#39ff34',
+                  fontSize: 21,
+                  fontWeight: '900',
+                  letterSpacing: 1.5,
+                  fontVariant: ['tabular-nums'],
+                }}
+              >
+                {formatTime(seconds)}
+              </Text>
+            </LinearGradient>
+
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={handleTopControlPress}
+              style={{
+                width: 32,
+                height: 32,
+                marginLeft: 6,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={28}
+                color="rgba(215,226,255,0.42)"
+              />
             </TouchableOpacity>
 
             <LinearGradient
-              colors={['#1a50c8', '#264fb9', '#1f3f98']}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              className="rounded-[20px] border border-[#87a7ff] px-5 py-2 flex-row items-center gap-2"
-            >
-              <Ionicons name="trophy" size={20} color="#f5bf32" />
-              <View className="items-center">
-                <Text className="text-white text-[15px] font-bold">Prize Pool</Text>
-                <Text className="text-white text-[28px] font-bold">Rs 0.15</Text>
-              </View>
-            </LinearGradient>
-
-            <View style={{ width: 46 }} />
-          </View>
-
-          <View className="mt-2 flex-row items-center justify-end">
-            <View className="bg-[#0e2f76] border border-[#5c84db] rounded-full px-4 py-1 flex-row items-center">
-              <Ionicons name="time-outline" size={16} color="#c6d8ff" />
-              <Text className="text-[#33ff59] text-[26px] ml-2 tracking-[2px] font-bold">
-                {formatTime(seconds)}
-              </Text>
-            </View>
-          </View>
-
-          <View className="mt-2 flex-row justify-between items-center">
-            <Dice color={Colors.yellow} player={2} data={player2} />
-            <View className="flex-row items-center bg-[#2959c2] border border-[#7ca0f3] rounded-full px-2 py-1">
-              <Image
-                source={ProfilePlaceholder}
-                style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 2, borderColor: '#f59b28' }}
-              />
-              <Text className="text-white text-[16px] font-semibold ml-2">umesh Va</Text>
-            </View>
-          </View>
-        </View>
-
-        <View className="w-full items-center justify-center mt-2">
-          <View
-            className="rounded-[10px] border border-[#5d7fc2] bg-[#5673b8]/70 p-1"
-            style={{ width: boardSize, height: boardSize }}
-          >
-            <View className="w-full h-full self-center">
-              <View className="w-full h-[40%] justify-between flex-row bg-[#ccc]">
-                <Pocket color={Colors.green} player={2} data={[]} />
-                <VerticalPath cells={Plot2Data} color={Colors.yellow} />
-                <Pocket
-                  color={Colors.yellow}
-                  player={2}
-                  data={player2}
-                  score={scores?.player2 ?? 0}
-                  scoreLabel="Second Mover"
-                />
-              </View>
-
-              <View className="flex-row w-full h-[20%] justify-between bg-[#1E5162]">
-                <HorizontalPath cells={Plot1Data} color={Colors.green} />
-                <FourTriangles
-                  player1={player1}
-                  player2={player2}
-                  player3={[]}
-                  player4={[]}
-                />
-                <HorizontalPath cells={Plot3Data} color={Colors.blue} />
-              </View>
-
-              <View className="w-full h-[40%] justify-between flex-row bg-[#ccc]">
-                <Pocket
-                  color={Colors.red}
-                  player={1}
-                  data={player1}
-                  score={scores?.player1 ?? 0}
-                  scoreLabel="First Mover"
-                />
-                <VerticalPath cells={Plot4Data} color={Colors.red} />
-                <Pocket color={Colors.blue} player={4} data={[]} />
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {showStartImage && (
-          <Animated.View
-            style={{
-              minWidth: boardSize * 0.56,
-              position: 'absolute',
-              opacity,
-              alignSelf: 'center',
-              top: boardSize * 0.42,
-              backgroundColor: 'rgba(7, 20, 59, 0.9)',
-              borderWidth: 1,
-              borderColor: '#7ea7ff',
-              borderRadius: 18,
-              paddingHorizontal: 22,
-              paddingVertical: 12,
-            }}
-            pointerEvents="none"
-          >
-            <Text
+              colors={['#3b6df1', '#416ee1', '#3561d0']}
+              start={{x: 0, y: 0.5}}
+              end={{x: 1, y: 0.5}}
               style={{
-                color: '#ffffff',
-                fontSize: 22,
-                fontWeight: '800',
-                textAlign: 'center',
-                letterSpacing: 0.4,
+                height: 38,
+                minWidth: 132,
+                paddingHorizontal: 18,
+                borderRadius: 19,
+                justifyContent: 'center',
+                marginLeft: 6,
               }}
             >
-              Waiting for opponent
-            </Text>
-          </Animated.View>
-        )}
-
-        <View className="mt-auto w-full px-2" pointerEvents={isDiceTouch ? 'none' : 'auto'}>
-          <View className="bg-[#1947aa] border border-[#6389e0] rounded-t-[10px] h-[42px] px-3 flex-row items-center justify-between">
-            <Text className="text-white text-[20px] font-semibold">Emojis</Text>
-            <Ionicons name="happy-outline" size={26} color="#e4eeff" />
+              <Text
+                style={{color: '#ffffff', fontSize: 14, fontWeight: '700'}}
+                numberOfLines={1}
+              >
+                Sk Akhta
+              </Text>
+            </LinearGradient>
           </View>
 
-          <View className="bg-[#123d99] border border-[#6389e0] rounded-b-[10px] px-3 py-2 flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <View className="w-[56px] h-[56px] rounded-full border-[3px] border-[#f4a836] bg-[#8d3eb2] items-center justify-center">
-                <Text className="text-white text-[34px]">B</Text>
-              </View>
-              <View className="ml-2">
-                <Text className="text-white text-[18px] font-semibold">kabir</Text>
+          {/* Row 3: opponent dice + avatar */}
+          <View
+            style={{
+              marginTop: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              alignSelf: 'flex-end',
+            }}
+          >
+            <Dice compact color={Colors.red} player={2} data={player2} />
+            <View
+              style={{
+                marginLeft: 10,
+                width: opponentAvatarSize,
+                height: opponentAvatarSize,
+                borderRadius: opponentAvatarSize / 2,
+                backgroundColor: '#0f235e',
+                borderWidth: 4,
+                borderColor: '#f8941f',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Image
+                source={ProfilePlaceholder}
+                style={{
+                  width: opponentAvatarSize - 10,
+                  height: opponentAvatarSize - 10,
+                  borderRadius: (opponentAvatarSize - 10) / 2,
+                }}
+              />
+            </View>
+          </View>
+        </View>
+
+        <View className="w-full items-center justify-center mt-3">
+          <View style={{width: boardSize, height: boardSize}}>
+            <View
+              className="rounded-[10px] border border-[#5d7fc2] bg-[#5673b8]/70 p-1"
+              style={{width: boardSize, height: boardSize}}
+            >
+              <View className="w-full h-full self-center">
+                <View className="w-full h-[40%] justify-between flex-row bg-[#d7d7dd]">
+                  <Pocket color={Colors.blue} player={4} data={[]} />
+                  <VerticalPath cells={Plot2Data} color={Colors.red} />
+                  <Pocket
+                    color={Colors.red}
+                    player={2}
+                    data={player2}
+                    score={scores?.player2 ?? 0}
+                    scoreLabel="Second Mover"
+                  />
+                </View>
+
+                <View className="flex-row w-full h-[20%] justify-between bg-[#d7d7dd]">
+                  <HorizontalPath cells={Plot1Data} color={Colors.blue} />
+                  <FourTriangles
+                    player1={player1}
+                    player2={player2}
+                    player3={[]}
+                    player4={[]}
+                  />
+                  <HorizontalPath cells={Plot3Data} color={Colors.green} />
+                </View>
+
+                <View className="w-full h-[40%] justify-between flex-row bg-[#d7d7dd]">
+                  <Pocket
+                    color={Colors.yellow}
+                    player={1}
+                    data={player1}
+                    score={scores?.player1 ?? 0}
+                    scoreLabel="First Mover"
+                  />
+                  <VerticalPath cells={Plot4Data} color={Colors.yellow} />
+                  <Pocket color={Colors.green} player={3} data={[]} />
+                </View>
               </View>
             </View>
 
-            <View className="flex-row items-center gap-2">
-              <Dice color={Colors.red} player={1} data={player1} />
+            {showStartImage && (
+              <Animated.View
+                style={{
+                  minWidth: boardSize * 0.56,
+                  position: 'absolute',
+                  opacity,
+                  alignSelf: 'center',
+                  top: boardSize * 0.39,
+                  backgroundColor: 'rgba(7, 20, 59, 0.9)',
+                  borderWidth: 1,
+                  borderColor: '#7ea7ff',
+                  borderRadius: 18,
+                  paddingHorizontal: 22,
+                  paddingVertical: 12,
+                }}
+                pointerEvents="none"
+              >
+                <Text
+                  style={{
+                    color: '#ffffff',
+                    fontSize: 22,
+                    fontWeight: '800',
+                    textAlign: 'center',
+                    letterSpacing: 0.4,
+                  }}
+                >
+                  Waiting for opponent
+                </Text>
+              </Animated.View>
+            )}
+          </View>
+        </View>
+
+        <View className="mt-auto w-full px-2" pointerEvents={isDiceTouch ? 'none' : 'auto'}>
+          <TouchableOpacity
+            activeOpacity={0.82}
+            onPress={handleTopControlPress}
+            style={{
+              alignSelf: 'flex-start',
+              flexDirection: 'row',
+              alignItems: 'center',
+              height: 40,
+              paddingHorizontal: 14,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.2)',
+              backgroundColor: 'rgba(43,48,61,0.88)',
+            }}
+          >
+            <Text
+              style={{color: '#f4f4f4', fontSize: 14, fontWeight: '700', marginRight: 10}}
+            >
+              Emojis
+            </Text>
+            <Ionicons name="happy-outline" size={28} color="#f4f4f4" />
+          </TouchableOpacity>
+
+          <View
+            style={{
+              marginTop: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 2,
+            }}
+          >
+            <View
+              style={{
+                width: firstMoverAvatarSize,
+                height: firstMoverAvatarSize,
+                borderRadius: firstMoverAvatarSize / 2,
+                backgroundColor: '#ff4f15',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <View
+                style={{
+                  width: firstMoverAvatarSize - 8,
+                  height: firstMoverAvatarSize - 8,
+                  borderRadius: (firstMoverAvatarSize - 8) / 2,
+                  backgroundColor: '#ffd653',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <LinearGradient
+                  colors={['#c85cd7', '#a949c1']}
+                  start={{x: 0.15, y: 0}}
+                  end={{x: 0.85, y: 1}}
+                  style={{
+                    width: firstMoverAvatarSize - 18,
+                    height: firstMoverAvatarSize - 18,
+                    borderRadius: (firstMoverAvatarSize - 18) / 2,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: '#ffffff',
+                      fontSize: firstMoverAvatarSize * 0.56,
+                      fontWeight: '300',
+                      lineHeight: firstMoverAvatarSize * 0.62,
+                    }}
+                  >
+                    B
+                  </Text>
+                </LinearGradient>
+              </View>
             </View>
+
+            <View style={{marginLeft: 12}}>
+              <Dice bubble color={Colors.yellow} player={1} data={player1} />
+            </View>
+          </View>
+
+          <View
+            style={{
+              marginTop: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 2,
+            }}
+          >
+            <LinearGradient
+              colors={['#3f6de0', '#315cc8']}
+              start={{x: 0, y: 0.5}}
+              end={{x: 1, y: 0.5}}
+              style={{
+                width: footerNameWidth,
+                height: 38,
+                borderRadius: 19,
+                paddingHorizontal: 22,
+                justifyContent: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  color: '#ffffff',
+                  fontSize: 15,
+                  fontWeight: '500',
+                }}
+                numberOfLines={1}
+              >
+                kabir
+              </Text>
+            </LinearGradient>
+
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={handleTopControlPress}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                marginLeft: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={32}
+                color="rgba(215, 226, 255, 0.55)"
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -278,6 +642,7 @@ const LudoBoardScreen = () => {
         )}
 
         {winner != null && <WinModal winner={winner} />}
+        </View>
       </View>
     </Wrapper>
   );

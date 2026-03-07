@@ -31,9 +31,9 @@ const FourTriangles = ({ player1, player2, player3, player4 }) => {
   }, [isFirework, dispatch]);
 
   const playersData = useMemo(() => [
-    { player: player1, playerNo: 1, top: 55, left: 15, pieceColor: Colors.red, translate: 'translateX' },
-    { player: player3, playerNo: 3, bottom: 55, left: 15, pieceColor: Colors.yellow, translate: 'translateX' },
-    { player: player2, playerNo: 2, top: 20, left: -2, pieceColor: Colors.yellow, translate: 'translateY' },
+    { player: player1, playerNo: 1, top: 55, left: 15, pieceColor: Colors.yellow, translate: 'translateX' },
+    { player: player3, playerNo: 3, bottom: 55, left: 15, pieceColor: Colors.green, translate: 'translateX' },
+    { player: player2, playerNo: 2, top: 20, left: -2, pieceColor: Colors.red, translate: 'translateY' },
     { player: player4, playerNo: 4, top: 20, left: -2, pieceColor: Colors.blue, translate: 'translateY' },
   ], [player1, player2, player3, player4]);
 
@@ -103,25 +103,25 @@ const FourTriangles = ({ player1, player2, player3, player4 }) => {
       )}
 
       <Svg height={size} width={size - 5}>
-        {/* Top Triangle - Yellow */}
+        {/* Top Triangle - Red */}
         <Polygon
           points={`0,0 ${size / 2},${size / 2} ${size},0`}
-          fill={Colors.yellow}
-        />
-        {/* Right Triangle - Blue */}
-        <Polygon
-          points={`${size},0 ${size},${size} ${size / 2},${size / 2}`}
-          fill={Colors.blue}
-        />
-        {/* Bottom Triangle - Red */}
-        <Polygon
-          points={`0,${size} ${size / 2},${size / 2} ${size},${size}`}
           fill={Colors.red}
         />
-        {/* Left Triangle - Green */}
+        {/* Right Triangle - Green */}
+        <Polygon
+          points={`${size},0 ${size},${size} ${size / 2},${size / 2}`}
+          fill={Colors.green}
+        />
+        {/* Bottom Triangle - Yellow */}
+        <Polygon
+          points={`0,${size} ${size / 2},${size / 2} ${size},${size}`}
+          fill={Colors.yellow}
+        />
+        {/* Left Triangle - Blue */}
         <Polygon
           points={`0,0 ${size / 2},${size / 2} 0,${size}`}
-          fill={Colors.green}
+          fill={Colors.blue}
         />
       </Svg>
 
