@@ -4,9 +4,30 @@ import { Audio } from 'expo-av';
 import {store} from '../redux/store';
 
 let currentSound = null;
+let audioModeReady = false;
 
 const getSoundSettings = () => store.getState()?.game?.settings ?? {};
 const isSoundEnabled = () => getSoundSettings().soundEnabled ?? true;
+
+const ensureAudioMode = async () => {
+  if (audioModeReady) {
+    return;
+  }
+
+  await Audio.setAudioModeAsync({
+    allowsRecordingIOS: false,
+    interruptionModeAndroid:
+      Audio.INTERRUPTION_MODE_ANDROID_DUCK_OTHERS ?? 1,
+    interruptionModeIOS:
+      Audio.INTERRUPTION_MODE_IOS_DUCK_OTHERS ?? 1,
+    playsInSilentModeIOS: true,
+    playThroughEarpieceAndroid: false,
+    shouldDuckAndroid: true,
+    staysActiveInBackground: false,
+  });
+
+  audioModeReady = true;
+};
 
 export const stopSound = async () => {
   if (currentSound) {
@@ -25,6 +46,7 @@ export const playSound = async (soundName) => {
     if (!isSoundEnabled()) {
       return;
     }
+    await ensureAudioMode();
     await stopSound();
     const soundPath = getSoundPath(soundName);
     const { sound } = await Audio.Sound.createAsync(soundPath);
@@ -39,6 +61,10 @@ export const playSound = async (soundName) => {
       }
     });
   } catch (e) {
+    const errorMessage = String(e?.message ?? e ?? '');
+    if (errorMessage.includes('AudioFocusNotAcquiredException')) {
+      return;
+    }
     console.log('cannot play the sound file', e);
   }
 };

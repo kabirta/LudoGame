@@ -1,21 +1,31 @@
 // ✅ EXPO CONVERTED
-import React, { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 
-import { Animated, Easing, TouchableOpacity, View } from 'react-native';
-import { Circle, Svg } from 'react-native-svg';
-import { useSelector } from 'react-redux';
+import {
+  Animated,
+  Easing,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import {useSelector} from 'react-redux';
 
-import { canMoveToken } from '../helpers/LudoMovementEngine';
-import TokenPileIcon from './TokenPileIcon';
+import {canMoveToken} from '../helpers/LudoMovementEngine';
 import {
   selectCellSelection,
   selectDiceNo,
   selectPocketPileSelection,
 } from '../redux/reducers/gameSelectors';
+import TokenPileIcon from './TokenPileIcon';
 
 const Pile = ({ cell, pieceId, player, color, onPress }) => {
-  const defaultPileSize = 50;
-  const enabledPileSize = 125;
+  const defaultPileSize = 20;
+  const enabledPileSize = 90;
   const rotation = useRef(new Animated.Value(0)).current;
   const currentPlayerPileSelection = useSelector(selectPocketPileSelection);
   const currentPlayerCellSelection = useSelector(selectCellSelection);
@@ -63,7 +73,7 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
     () =>
       cell
         ? { alignItems: 'center', justifyContent: 'center' }
-        : { position: 'absolute', top: isPileEnabled ? -44 : -18 },
+        : { position: 'absolute', top: isPileEnabled ? -40 : -18 },
     [cell, isPileEnabled],
   );
   const showSelectionIndicator = cell ? isCellEnabled && isForwardable() : isPileEnabled;

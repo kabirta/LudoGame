@@ -179,6 +179,27 @@ export const canMoveToken = (pawn, diceNo) =>
   !pawn.isHome &&
   getPawnPosition(pawn) + diceNo <= HOME_ENTRY_POSITION;
 
+export const isTokenInBase = pawn =>
+  Boolean(pawn) &&
+  !pawn.isHome &&
+  typeof pawn?.positionIndex === 'number' &&
+  pawn.positionIndex < 0;
+
+export const canPieceMove = (pawn, diceNo) => {
+  if (!pawn || pawn.isHome) {
+    return false;
+  }
+
+  if (isTokenInBase(pawn)) {
+    return diceNo === 6;
+  }
+
+  return canMoveToken(pawn, diceNo);
+};
+
+export const getMovableTokens = (pawns, diceNo) =>
+  (pawns ?? []).filter(pawn => canPieceMove(pawn, diceNo));
+
 export const stepToken = (pawn, playerNo) => {
   if (!canMoveToken(pawn, 1)) {
     return pawn;
@@ -249,5 +270,8 @@ export const capturePawn = (movingPawn, opponentPawns) => {
 export const getPlayerScore = pawns =>
   pawns.reduce((total, pawn) => total + (pawn?.score ?? 0), 0);
 
-export const shouldGrantExtraRoll = ({diceNo, capturedCount = 0}) =>
-  diceNo === 6 || capturedCount > 0;
+export const shouldGrantExtraRoll = ({
+  diceNo,
+  capturedCount = 0,
+  reachedHome = false,
+}) => diceNo === 6 || capturedCount > 0 || reachedHome;

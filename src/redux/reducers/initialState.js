@@ -51,6 +51,12 @@ export const initialState = {
         player3: 0,
         player4: 0,
     },
+    missedRolls: {
+        player1: 0,
+        player2: 0,
+        player3: 0,
+        player4: 0,
+    },
     settings: {
         musicEnabled: false,
         soundEnabled: true,

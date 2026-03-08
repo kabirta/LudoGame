@@ -36,6 +36,18 @@ export const gameSlice = createSlice({
       state.touchDiceBlock = true;
       state.pileSelectionPlayer = action.payload.playerNo;
     },
+    recordMissedRoll: (state, action) => {
+      const playerKey = `player${action.payload.playerNo}`;
+      if (state.missedRolls[playerKey] !== undefined) {
+        state.missedRolls[playerKey] += 1;
+      }
+    },
+    resetMissedRolls: (state, action) => {
+      const playerKey = `player${action.payload.playerNo}`;
+      if (state.missedRolls[playerKey] !== undefined) {
+        state.missedRolls[playerKey] = 0;
+      }
+    },
     updatePlayerChance: (state, action) => {
       const nextPlayer = action.payload.chancePlayer;
       const previousPlayerKey = `player${state.chancePlayer}`;
@@ -127,6 +139,8 @@ export const {
   updateFireworks, 
   updateDiceNo,
   enablePileSelection, 
+  recordMissedRoll,
+  resetMissedRolls,
   updatePlayerChance,
   enableCellSelection, 
   updateGameSetting,

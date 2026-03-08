@@ -1,34 +1,54 @@
 // ✅ EXPO CONVERTED
-import React, { useEffect, useRef, useState } from 'react';
+import React, {useState} from 'react';
 
+import {LinearGradient} from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
-import { Animated, Easing, Image, TouchableOpacity, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useDispatch, useSelector } from 'react-redux';
+import {Image, TouchableOpacity, View} from 'react-native';
+import Svg, {Rect} from 'react-native-svg';
+import {
+  useDispatch,
+  useSelector,
+} from 'react-redux';
 
 import DiceRoll from '../assets/animation/diceroll.json';
-import Arrow from '../assets/images/arrow.png';
-import { BackgroundImage } from '../helpers/GetIcons';
-import { canMoveToken, getNextActivePlayer, rollDice } from '../helpers/LudoMovementEngine';
-import { playSound } from '../helpers/SoundUtility';
+import {BackgroundImage} from '../helpers/GetIcons';
+import {
+  getMovableTokens,
+  getNextActivePlayer,
+  isTokenInBase,
+  rollDice,
+} from '../helpers/LudoMovementEngine';
+import {playSound} from '../helpers/SoundUtility';
 import {
   selectCurrentPlayerChance,
   selectDiceNo,
-  selectDiceRolled,
   selectPlayerSixCount,
 } from '../redux/reducers/gameSelectors';
 import {
+  disableTouch,
   enableCellSelection,
   enablePileSelection,
+  resetMissedRolls,
   updateDiceNo,
   updatePlayerChance,
 } from '../redux/reducers/gameSlice';
 import TokenPileIcon from './TokenPileIcon';
 
-const Dice = React.memo(({ color, rotate, player, data, compact = false, bubble = false }) => {
+const Dice = React.memo(({
+  color,
+  rotate,
+  player,
+  data,
+  compact = false,
+  bubble = false,
+  rollTimeoutProgress = 1,
+}) => {
+  const timerStrokeLength = 4 * (66 - 16) + 2 * Math.PI * 16;
+  const isInFinalCountdown = rollTimeoutProgress <= 5 / 15;
+  const timerStrokeColor = isInFinalCountdown ? '#ff4d4f' : '#5cff60';
+
   const dispatch = useDispatch();
   const currentPlayerChance = useSelector(selectCurrentPlayerChance);
-  const isDiceRolled = useSelector(selectDiceRolled);
   const diceNo = useSelector(selectDiceNo);
   const consecutiveSixCount = useSelector(state => selectPlayerSixCount(state, player));
   const playerPieces = useSelector(state => state.game[`player${player}`]);
@@ -36,36 +56,15 @@ const Dice = React.memo(({ color, rotate, player, data, compact = false, bubble 
 
   const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-  const arrowAnim = useRef(new Animated.Value(0)).current;
   const [diceRolling, setDiceRolling] = useState(false);
-
-  useEffect(() => {
-    const animateArrow = () => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(arrowAnim, {
-            toValue: 10,
-            duration: 600,
-            easing: Easing.in(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(arrowAnim, {
-            toValue: -10,
-            duration: 400,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    };
-    animateArrow();
-  }, [currentPlayerChance, isDiceRolled, arrowAnim]);
 
   const handleDicePress = async () => {
     const newDiceNo = rollDice();
     const nextSixCount = newDiceNo === 6 ? consecutiveSixCount + 1 : 0;
 
     playSound('dice_roll');
+    dispatch(disableTouch());
+    dispatch(resetMissedRolls({playerNo: player}));
     setDiceRolling(true);
     await delay(800);
     setDiceRolling(false);
@@ -78,81 +77,93 @@ const Dice = React.memo(({ color, rotate, player, data, compact = false, bubble 
       return;
     }
 
-    const isAnyPieceAlive = data?.some(piece => piece.positionIndex >= 0 && !piece.isHome);
-    const isAnyPieceLocked = data?.findIndex(piece => piece.positionIndex === -1 && !piece.isHome);
+    const movablePieces = getMovableTokens(playerPieces, newDiceNo);
+    const movableBasePieces = movablePieces.filter(isTokenInBase);
+    const movableBoardPieces = movablePieces.filter(piece => !isTokenInBase(piece));
 
-    if (!isAnyPieceAlive) {
-      if (isAnyPieceLocked !== -1) {
-        dispatch(enablePileSelection({ playerNo: player }));
-      } else {
-        const chancePlayer = getNextActivePlayer(player);
-        await delay(600);
-        dispatch(updatePlayerChance({ chancePlayer }));
-      }
-    } else {
-      const canMove = playerPieces.some(
-        piece => canMoveToken(piece, newDiceNo) && piece.positionIndex >= 0,
-      );
+    if (movablePieces.length === 0) {
+      const chancePlayer = getNextActivePlayer(player);
+      await delay(600);
+      dispatch(updatePlayerChance({ chancePlayer }));
+      return;
+    }
 
-      if (!canMove && isAnyPieceLocked === -1) {
-        const chancePlayer = getNextActivePlayer(player);
-        await delay(600);
-        dispatch(updatePlayerChance({ chancePlayer: chancePlayer }));
-        return;
-      }
+    if (movableBasePieces.length > 0) {
+      dispatch(enablePileSelection({ playerNo: player }));
+    }
 
-      if (isAnyPieceLocked !== -1) {
-        dispatch(enablePileSelection({ playerNo: player }));
-      }
-      if (canMove) {
-        dispatch(enableCellSelection({ playerNo: player }));
-      }
+    if (movableBoardPieces.length > 0) {
+      dispatch(enableCellSelection({ playerNo: player }));
     }
   };
 
   const canInteract = currentPlayerChance === player;
+  const useSmallDiceLayout = bubble || compact;
 
-  if (bubble) {
+  if (useSmallDiceLayout) {
     return (
       <View
         className="justify-center items-center flex-row"
-        style={{ transform: [{ scaleX: rotate ? -1 : 1 }] }}
+        style={{transform: [{scaleX: rotate ? -1 : 1}]}}
       >
-        <View style={{ paddingLeft: 14 }}>
+        <View
+          style={{
+            padding: 6,
+            borderRadius: 20,
+            backgroundColor: canInteract ? 'rgba(80,255,92,0.18)' : 'rgba(52,73,137,0.18)',
+            shadowColor: canInteract ? '#5eff68' : '#1f3f95',
+            shadowOpacity: canInteract ? 0.8 : 0.2,
+            shadowRadius: canInteract ? 14 : 6,
+            shadowOffset: {width: 0, height: 0},
+            elevation: canInteract ? 10 : 2,
+          }}
+        >
           <View
             style={{
-              position: 'absolute',
-              left: 3,
-              top: 22,
-              width: 0,
-              height: 0,
-              borderTopWidth: 12,
-              borderBottomWidth: 12,
-              borderRightWidth: 18,
-              borderTopColor: 'transparent',
-              borderBottomColor: 'transparent',
-              borderRightColor: canInteract ? '#486cdf' : '#324b99',
-            }}
-          />
-
-          <View
-            style={{
-              width: 94,
-              height: 94,
-              borderRadius: 22,
+              width: 70,
+              height: 70,
+              borderRadius: 18,
               padding: 6,
-              backgroundColor: canInteract ? '#486cdf' : '#324b99',
-              borderWidth: 1.5,
-              borderColor: canInteract ? '#6b8cff' : '#4a63ad',
+              backgroundColor: canInteract ? '#0d2560' : '#183072',
+              borderWidth: 2.5,
+              borderColor: canInteract ? '#2c447f' : '#4963af',
             }}
-          >
+            >
+            {canInteract && !diceRolling ? (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  top: -7,
+                  right: -7,
+                  bottom: -7,
+                  left: -7,
+                }}
+              >
+                <Svg width="84" height="84" viewBox="0 0 84 84">
+                  <Rect
+                    x="9"
+                    y="9"
+                    width="66"
+                    height="66"
+                    rx="16"
+                    fill="none"
+                    stroke={timerStrokeColor}
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    strokeDasharray={`${Math.max(timerStrokeLength * rollTimeoutProgress, 8)} ${timerStrokeLength}`}
+                    transform="rotate(-90 42 42)"
+                  />
+                </Svg>
+              </View>
+            ) : null}
             <View
               style={{
                 flex: 1,
-                borderRadius: 17,
-                backgroundColor: '#d6d9ec',
-                borderWidth: 4,
-                borderColor: '#7a81b1',
+                borderRadius: 13,
+                backgroundColor: '#eef1fb',
+                borderWidth: 1.5,
+                borderColor: '#aab6dd',
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: canInteract ? 1 : 0.68,
@@ -164,10 +175,10 @@ const Dice = React.memo(({ color, rotate, player, data, compact = false, bubble 
                   activeOpacity={0.45}
                   onPress={handleDicePress}
                 >
-                  <Image source={diceIcon} style={{ width: 56, height: 56 }} />
+                  <Image source={diceIcon} style={{width: 52, height: 52}} />
                 </TouchableOpacity>
               ) : (
-                <Image source={diceIcon} style={{ width: 56, height: 56 }} />
+                <Image source={diceIcon} style={{width: 52, height: 52}} />
               )}
             </View>
           </View>
@@ -180,8 +191,8 @@ const Dice = React.memo(({ color, rotate, player, data, compact = false, bubble 
                 width: 104,
                 zIndex: 99,
                 position: 'absolute',
-                top: -4,
-                left: 6,
+                top: -10,
+                left: -10,
               }}
               autoPlay
               loop
@@ -194,71 +205,10 @@ const Dice = React.memo(({ color, rotate, player, data, compact = false, bubble 
     );
   }
 
-  if (compact) {
-    return (
-      <View
-        className="justify-center items-center flex-row"
-        style={{ transform: [{ scaleX: rotate ? -1 : 1 }] }}
-      >
-        <View
-          style={{
-            borderWidth: 6,
-            borderColor: canInteract ? '#39ff34' : '#3752a2',
-            borderRadius: 24,
-            padding: 6,
-            backgroundColor: '#152761',
-          }}
-        >
-          <View
-            style={{
-              width: 86,
-              height: 86,
-              borderRadius: 18,
-              backgroundColor: '#f1f1f4',
-              borderWidth: 5,
-              borderColor: '#1b265f',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {canInteract && !diceRolling ? (
-              <TouchableOpacity
-                disabled={diceRolling}
-                activeOpacity={0.45}
-                onPress={handleDicePress}
-              >
-                <Image source={diceIcon} style={{ width: 58, height: 58 }} />
-              </TouchableOpacity>
-            ) : (
-              <Image source={diceIcon} style={{ width: 58, height: 58 }} />
-            )}
-          </View>
-        </View>
-
-        {canInteract && !isDiceRolled ? (
-          <Animated.View style={{ marginLeft: 8, transform: [{ translateX: arrowAnim }] }}>
-            <Image source={Arrow} style={{ width: 34, height: 22 }} />
-          </Animated.View>
-        ) : null}
-
-        {canInteract && diceRolling ? (
-          <LottieView
-            source={DiceRoll}
-            style={{ height: 110, width: 110, zIndex: 99, position: 'absolute' }}
-            autoPlay
-            loop
-            cacheComposition
-            hardwareAccelerationAndroid
-          />
-        ) : null}
-      </View>
-    );
-  }
-
   return (
     <View
       className="justify-center items-center flex-row"
-      style={{ transform: [{ scaleX: rotate ? -1 : 1 }] }}
+      style={{transform: [{scaleX: rotate ? -1 : 1}]}}
     >
       <View
         className="border-[3px] border-[#f0ce2c]"
@@ -308,12 +258,6 @@ const Dice = React.memo(({ color, rotate, player, data, compact = false, bubble 
           </View>
         </LinearGradient>
       </View>
-
-      {currentPlayerChance === player && !isDiceRolled ? (
-        <Animated.View style={{ transform: [{ translateX: arrowAnim }] }}>
-          <Image source={Arrow} style={{ width: 40, height: 30 }} />
-        </Animated.View>
-      ) : null}
 
       {currentPlayerChance === player && diceRolling ? (
         <LottieView

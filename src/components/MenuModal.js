@@ -151,13 +151,6 @@ const MenuModal = ({visible, onPressHide}) => {
             onChange={value => handleSettingChange('vibrationEnabled', value)}
           />
 
-          <SettingsRow
-            icon={<MaterialCommunityIcons name="emoticon-happy-outline" size={30} color="#101830" />}
-            label="Emojis"
-            value={settings.emojisEnabled}
-            onChange={value => handleSettingChange('emojisEnabled', value)}
-          />
-
           <View style={styles.divider} />
 
           <TouchableOpacity

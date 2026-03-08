@@ -1,4 +1,6 @@
 import reducer, {
+  recordMissedRoll,
+  resetMissedRolls,
   resetGame,
   updateDiceNo,
   updateGameSetting,
@@ -54,5 +56,13 @@ describe('gameSlice six-roll rules', () => {
 
     expect(state.settings.musicEnabled).toBe(true);
     expect(state.settings.soundEnabled).toBe(true);
+  });
+
+  it('tracks missed rolls and resets them after a successful roll', () => {
+    let state = reducer(undefined, recordMissedRoll({playerNo: 1}));
+    state = reducer(state, recordMissedRoll({playerNo: 1}));
+    state = reducer(state, resetMissedRolls({playerNo: 1}));
+
+    expect(state.missedRolls.player1).toBe(0);
   });
 });

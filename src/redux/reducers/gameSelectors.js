@@ -17,3 +17,6 @@ export const selectScores = state => state.game.scores;
 export const selectPlayerSixCount = (state, playerNo) =>
   state.game.consecutiveSixes[`player${playerNo}`] ?? 0;
 export const selectGameSettings = state => state.game.settings;
+export const selectMissedRolls = state => state.game.missedRolls;
+export const selectMissedRollCount = (state, playerNo) =>
+  state.game.missedRolls?.[`player${playerNo}`] ?? 0;

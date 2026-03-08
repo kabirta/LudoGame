@@ -12,6 +12,7 @@ import {
 import {playSound} from '../../helpers/SoundUtility';
 import {selectDiceNo} from './gameSelectors';
 import {
+  announceWinners,
   disableTouch,
   updateFireworks,
   updatePlayerChance,
@@ -65,6 +66,18 @@ export const handleForwardThunk =
     }
 
     const updatedState = getState();
+    const currentPlayerPawns = updatedState.game[`player${playerNo}`] ?? [];
+    const allPawnsHome =
+      currentPlayerPawns.length > 0 &&
+      currentPlayerPawns.every(pawn => pawn?.isHome);
+
+    if (allPawnsHome) {
+      playSound('home_win');
+      dispatch(updateFireworks(true));
+      dispatch(announceWinners(playerNo));
+      return;
+    }
+
     const opponentPawns = ACTIVE_PLAYERS.filter(
       activePlayerNo => activePlayerNo !== playerNo,
     ).flatMap(activePlayerNo => updatedState.game[`player${activePlayerNo}`]);
@@ -88,11 +101,14 @@ export const handleForwardThunk =
       dispatch(updateFireworks(true));
     }
 
+    const reachedHome = updatedToken.positionIndex === HOME_POSITION_INDEX;
+
     dispatch(
       updatePlayerChance({
         chancePlayer: shouldGrantExtraRoll({
           diceNo,
           capturedCount: capturedPawns.length,
+          reachedHome,
         })
           ? playerNo
           : getNextActivePlayer(playerNo),
