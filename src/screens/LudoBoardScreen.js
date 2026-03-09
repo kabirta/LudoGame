@@ -538,6 +538,16 @@ const LudoBoardScreen = () => {
                 alignSelf: 'flex-end',
               }}
             >
+              <View style={{marginRight: 10}}>
+                <Dice
+                  bubble
+                  color={Colors.red}
+                  player={2}
+                  data={player2}
+                  rollTimeoutProgress={turnRollProgress}
+                />
+              </View>
+
               <View
                 style={{
                   width: firstMoverAvatarSize,
@@ -557,16 +567,6 @@ const LudoBoardScreen = () => {
                     height: firstMoverAvatarSize - 8,
                     borderRadius: (firstMoverAvatarSize - 8) / 2,
                   }}
-                />
-              </View>
-
-              <View style={{marginLeft: 10}}>
-                <Dice
-                  bubble
-                  color={Colors.red}
-                  player={2}
-                  data={player2}
-                  rollTimeoutProgress={turnRollProgress}
                 />
               </View>
             </View>
