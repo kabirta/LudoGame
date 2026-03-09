@@ -24,8 +24,8 @@ import {
 import TokenPileIcon from './TokenPileIcon';
 
 const Pile = ({ cell, pieceId, player, color, onPress }) => {
-  const defaultPileSize = 20;
-  const enabledPileSize = 90;
+  const defaultPileSize = 30;
+  const enabledPileSize = 30;
   const rotation = useRef(new Animated.Value(0)).current;
   const currentPlayerPileSelection = useSelector(selectPocketPileSelection);
   const currentPlayerCellSelection = useSelector(selectCellSelection);
@@ -73,7 +73,7 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
     () =>
       cell
         ? { alignItems: 'center', justifyContent: 'center' }
-        : { position: 'absolute', top: isPileEnabled ? -40 : -18 },
+        : { position: 'absolute', top: isPileEnabled ? -47 : -30 },
     [cell, isPileEnabled],
   );
   const showSelectionIndicator = cell ? isCellEnabled && isForwardable() : isPileEnabled;
@@ -90,11 +90,11 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
           className="absolute justify-center items-center"
           style={{ width: 30, height: 30 }}
         >
-          <View style={{ width: 30, height: 60, alignSelf: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 30, height: 50, alignSelf: 'center', justifyContent: 'center' }}>
             <Animated.View
               style={{
-                width: 30,
-                height: 30,
+                width: 40,
+                height: 40,
                 alignSelf: 'center',
                 justifyContent: 'center',
                 transform: [{ rotate: rotateInterpolate }],
@@ -107,7 +107,7 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
       )}
 
       <View style={tokenOffsetStyle}>
-        <TokenPileIcon color={color} size={isPileEnabled ? enabledPileSize : defaultPileSize} />
+        <TokenPileIcon color={color} size={isPileEnabled ? enabledPileSize : defaultPileSize} width={isPileEnabled ? 30 : 32} />
       </View>
     </TouchableOpacity>
   );

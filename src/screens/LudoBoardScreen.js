@@ -70,6 +70,19 @@ import {getNextActivePlayer} from '../helpers/LudoMovementEngine';
 
 const TURN_ROLL_TIMEOUT_SECONDS = 15;
 const MAX_MISSED_ROLLS = 3;
+const MISSED_TURN_STEPS = [
+  {key: 'first', threshold: 1, label: '1st\nMISS'},
+  {key: 'second', threshold: 2, label: '2nd\nMISS'},
+  {key: 'game-over', threshold: 3, label: 'GAME\nOVER'},
+];
+
+const getTurnMissBannerText = missedCount => {
+  if (missedCount === 1) {
+    return '1st TURN MISS';
+  }
+
+  return '';
+};
 
 const BoardBackdrop = () => (
   <View
@@ -194,6 +207,8 @@ const LudoBoardScreen = () => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [showStartImage, setShowStartImage] = useState(false);
   const [turnRollProgress, setTurnRollProgress] = useState(1);
+  const [turnMissBanner, setTurnMissBanner] = useState(null);
+  const [missedTurnInfoPlayer, setMissedTurnInfoPlayer] = useState(null);
   const boardSize = Math.min(deviceWidth * 0.965, deviceHeight * 0.59);
   const opponentAvatarSize = Math.min(deviceWidth * 0.15, 70);
   const firstMoverAvatarSize = Math.min(deviceWidth * 0.15, 70);
@@ -208,8 +223,19 @@ const LudoBoardScreen = () => {
     playSound('ui');
   }, []);
 
+  const handleMissedTurnInfoPress = useCallback(playerNo => {
+    playSound('ui');
+    setMissedTurnInfoPlayer(currentPlayer =>
+      currentPlayer === playerNo ? null : playerNo,
+    );
+  }, []);
+
   const handleCloseMenu = useCallback(() => {
     setMenuVisible(false);
+  }, []);
+
+  const handleCloseMissedTurnInfo = useCallback(() => {
+    setMissedTurnInfoPlayer(null);
   }, []);
 
   useEffect(() => {
@@ -265,6 +291,20 @@ const LudoBoardScreen = () => {
   }, [isFocused, opacity]);
 
   useEffect(() => {
+    if (!turnMissBanner) {
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => {
+      setTurnMissBanner(null);
+    }, 1800);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [turnMissBanner]);
+
+  useEffect(() => {
     if (!isFocused || winner != null) {
       setTurnRollProgress(1);
       return undefined;
@@ -284,6 +324,10 @@ const LudoBoardScreen = () => {
       const nextMissCount =
         (missedRolls?.[`player${currentPlayerChance}`] ?? 0) + 1;
 
+      setTurnMissBanner({
+        message: getTurnMissBannerText(nextMissCount),
+        playerNo: currentPlayerChance,
+      });
       dispatch(recordMissedRoll({playerNo: currentPlayerChance}));
 
       if (nextMissCount >= MAX_MISSED_ROLLS) {
@@ -303,6 +347,41 @@ const LudoBoardScreen = () => {
       clearTimeout(timeout);
     };
   }, [currentPlayerChance, dispatch, isFocused, missedRolls, winner]);
+
+  const selectedMissedTurnCount =
+    missedTurnInfoPlayer == null
+      ? 0
+      : missedRolls?.[`player${missedTurnInfoPlayer}`] ?? 0;
+  const missedTurnCardPosition =
+    missedTurnInfoPlayer === 2
+      ? {top: 108, right: 26}
+      : {bottom: 108, left: 84};
+  const missedTurnArrowStyle =
+    missedTurnInfoPlayer === 2
+      ? {
+          position: 'absolute',
+          top: -8,
+          right: 28,
+          width: 16,
+          height: 16,
+          backgroundColor: '#ffffff',
+          borderLeftWidth: 1.5,
+          borderTopWidth: 1.5,
+          borderColor: '#5e8cff',
+          transform: [{rotate: '45deg'}],
+        }
+      : {
+          position: 'absolute',
+          left: -8,
+          bottom: 34,
+          width: 16,
+          height: 16,
+          backgroundColor: '#ffffff',
+          borderLeftWidth: 1.5,
+          borderBottomWidth: 1.5,
+          borderColor: '#5e8cff',
+          transform: [{rotate: '45deg'}],
+        };
 
   return (
     <Wrapper>
@@ -412,11 +491,11 @@ const LudoBoardScreen = () => {
 
               <TouchableOpacity
                 activeOpacity={0.82}
-                onPress={handleTopControlPress}
+                onPress={() => handleMissedTurnInfoPress(2)}
                 style={{
                   width: 34,
                   height: 34,
-                  marginLeft: 6,
+                  marginLeft: -4,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -583,8 +662,9 @@ const LudoBoardScreen = () => {
             </View>
           </View>
 
-          <View className="mt-auto w-full px-1" pointerEvents={isDiceTouch ? 'none' : 'auto'}>
+          <View className="mt-auto w-full px-1">
             <View
+              pointerEvents={isDiceTouch ? 'none' : 'auto'}
               style={{
                 marginTop: 20,
                 flexDirection: 'row',
@@ -641,45 +721,231 @@ const LudoBoardScreen = () => {
                 marginTop: 150,
                 flexDirection: 'row',
                 alignItems: 'center',
-                paddingHorizontal: 2,
+                paddingHorizontal:2,
+               
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginTop: -250,
+                  marginLeft: -10,
+                }}
+              >
+                <LinearGradient
+                  colors={['#3f6de0', '#315cc8']}
+                  start={{x: 0, y: 0.5}}
+                  end={{x: 1, y: 0.5}}
+                  style={{
+                    width: footerNameWidth,
+                    height: 20,
+                    paddingHorizontal: 20,
+                    borderTopRightRadius: 20,
+                    borderBottomRightRadius: 20,
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: '#ffffff',
+                      fontSize: 14,
+                      fontWeight: '600',
+                    }}
+                    numberOfLines={1}
+                  >
+                    kabir
+                  </Text>
+                </LinearGradient>
+
+                <TouchableOpacity
+                  activeOpacity={0.82}
+                  onPress={() => handleMissedTurnInfoPress(1)}
+                  style={{
+                    width: 22,
+                    height: 22,
+                    marginLeft: 6,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={20}
+                    color="rgba(215,226,255,0.42)"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {turnMissBanner?.message ? (
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: 0,
+                right: 0,
+                alignItems: 'center',
+                transform: [{translateY: -28}],
+                zIndex: 30,
               }}
             >
               <LinearGradient
-                colors={['#3f6de0', '#315cc8']}
-                start={{x: 0, y: 0.5}}
-                end={{x: 1, y: 0.5}}
+                colors={['rgba(17,34,92,0.96)', 'rgba(8,24,68,0.96)']}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 1}}
                 style={{
-                  width: footerNameWidth,
-                  height: 20,
-                  paddingHorizontal: 20,
-                  borderTopRightRadius: 20,
-                  borderBottomRightRadius: 20,
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexDirection: 'row',
-                  marginTop: -250,
-                  marginLeft: -10,
-                  
+                  minWidth: 180,
+                  paddingHorizontal: 18,
+                  paddingVertical: 12,
+                  borderRadius: 18,
+                  borderWidth: 1.5,
+                  borderColor: '#7ea7ff',
+                  shadowColor: '#051640',
+                  shadowOpacity: 0.35,
+                  shadowRadius: 12,
+                  shadowOffset: {width: 0, height: 4},
+                  elevation: 8,
                 }}
               >
                 <Text
                   style={{
                     color: '#ffffff',
-                    fontSize: 14,
-                    fontWeight: '600',
+                    fontSize: 20,
+                    fontWeight: '900',
+                    textAlign: 'center',
+                    letterSpacing: 0.6,
                   }}
-                  numberOfLines={1}
                 >
-                  kabir
+                  {turnMissBanner.message}
                 </Text>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={20}
-                  color="rgba(215,226,255,0.42)"
-                />
               </LinearGradient>
             </View>
-          </View>
+          ) : null}
+
+          {missedTurnInfoPlayer != null ? (
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                zIndex: 40,
+              }}
+            >
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={handleCloseMissedTurnInfo}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  left: 0,
+                }}
+              />
+
+              <View
+                style={{
+                  position: 'absolute',
+                  width: 210,
+                  borderRadius: 18,
+                  borderWidth: 1.5,
+                  borderColor: '#5e8cff',
+                  backgroundColor: '#ffffff',
+                  paddingHorizontal: 16,
+                  paddingTop: 14,
+                  paddingBottom: 16,
+                  shadowColor: '#1a2d68',
+                  shadowOpacity: 0.28,
+                  shadowRadius: 16,
+                  shadowOffset: {width: 0, height: 6},
+                  elevation: 12,
+                  ...missedTurnCardPosition,
+                }}
+              >
+                <View style={missedTurnArrowStyle} />
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: '#1b62b2',
+                      fontSize: 14,
+                      fontWeight: '900',
+                      letterSpacing: 0.5,
+                    }}
+                  >
+                    TURN MISSED
+                  </Text>
+
+                  <TouchableOpacity
+                    activeOpacity={0.82}
+                    onPress={handleCloseMissedTurnInfo}
+                    style={{
+                      width: 24,
+                      height: 24,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons name="close" size={20} color="#4d7fd2" />
+                  </TouchableOpacity>
+                </View>
+
+                <View
+                  style={{
+                    marginTop: 16,
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  {MISSED_TURN_STEPS.map(step => {
+                    const isReached = selectedMissedTurnCount >= step.threshold;
+
+                    return (
+                      <View
+                        key={step.key}
+                        style={{
+                          flex: 1,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Ionicons
+                          name={isReached ? 'heart' : 'heart-outline'}
+                          size={30}
+                          color={isReached ? '#ff617e' : '#8f96ac'}
+                        />
+                        <Text
+                          style={{
+                            marginTop: 8,
+                            color: '#6d7487',
+                            fontSize: 11,
+                            fontWeight: '800',
+                            lineHeight: 15,
+                            textAlign: 'center',
+                          }}
+                        >
+                          {step.label}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+          ) : null}
 
           {menuVisible ? <MenuModal onPressHide={handleCloseMenu} visible={menuVisible} /> : null}
           {winner != null ? <WinModal winner={winner} /> : null}
