@@ -46,6 +46,7 @@ import {
   deviceWidth,
 } from '../constants/Scaling';
 import {useGameTime} from '../helpers/GameTime';
+import {getNextActivePlayer} from '../helpers/LudoMovementEngine';
 import {
   Plot1Data,
   Plot2Data,
@@ -60,13 +61,13 @@ import {
   selectPlayer1,
   selectPlayer2,
   selectScores,
+  selectTurnToken,
 } from '../redux/reducers/gameSelectors';
 import {
   announceWinners,
   recordMissedRoll,
   updatePlayerChance,
 } from '../redux/reducers/gameSlice';
-import {getNextActivePlayer} from '../helpers/LudoMovementEngine';
 
 const TURN_ROLL_TIMEOUT_SECONDS = 15;
 const MAX_MISSED_ROLLS = 3;
@@ -196,11 +197,12 @@ const LudoBoardScreen = () => {
   const player2 = useSelector(selectPlayer2);
   const scores = useSelector(selectScores);
   const currentPlayerChance = useSelector(selectCurrentPlayerChance);
+  const turnToken = useSelector(selectTurnToken);
   const isDiceTouch = useSelector(selectDiceTouch);
   const missedRolls = useSelector(selectMissedRolls);
   const winner = useSelector(state => state.game.winner);
   const isFocused = useIsFocused();
-  const {seconds, formatTime} = useGameTime(8 * 60);
+  const {seconds, formatTime} = useGameTime(5 * 60);
   const timerCompletedRef = useRef(false);
 
   const opacity = useRef(new Animated.Value(1)).current;
@@ -346,7 +348,7 @@ const LudoBoardScreen = () => {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [currentPlayerChance, dispatch, isFocused, missedRolls, winner]);
+  }, [currentPlayerChance, dispatch, isFocused, missedRolls, turnToken, winner]);
 
   const selectedMissedTurnCount =
     missedTurnInfoPlayer == null

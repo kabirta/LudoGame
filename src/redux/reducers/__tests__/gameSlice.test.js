@@ -2,6 +2,7 @@ import reducer, {
   recordMissedRoll,
   resetMissedRolls,
   resetGame,
+  hydrateGameFromServer,
   updateDiceNo,
   updateGameSetting,
   updatePlayerChance,
@@ -64,5 +65,35 @@ describe('gameSlice six-roll rules', () => {
     state = reducer(state, resetMissedRolls({playerNo: 1}));
 
     expect(state.missedRolls.player1).toBe(0);
+  });
+
+  it('bumps the turn token even when the same player gets another roll chance', () => {
+    let state = reducer(undefined, updatePlayerChance({chancePlayer: 1}));
+    state = reducer(state, updatePlayerChance({chancePlayer: 1}));
+
+    expect(state.turnToken).toBe(2);
+    expect(state.chancePlayer).toBe(1);
+  });
+
+  it('hydrates synced game state without dropping local board config', () => {
+    const state = reducer(
+      undefined,
+      hydrateGameFromServer({
+        chancePlayer: 2,
+        diceNo: 6,
+        winner: 2,
+        scores: {
+          player1: 12,
+          player2: 56,
+        },
+      }),
+    );
+
+    expect(state.chancePlayer).toBe(2);
+    expect(state.diceNo).toBe(6);
+    expect(state.winner).toBe(2);
+    expect(state.scores.player2).toBe(56);
+    expect(state.boardPath).toBeDefined();
+    expect(state.settings.soundEnabled).toBe(true);
   });
 });

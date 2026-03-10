@@ -64,6 +64,7 @@ export const initialState = {
         emojisEnabled: true,
     },
     chancePlayer: 1,
+    turnToken: 0,
     diceNo: 1,
     isDiceRolled: false,
     pileSelectionPlayer: -1,

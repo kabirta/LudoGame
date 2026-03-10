@@ -11,6 +11,7 @@ import LudoBoardScreen from '../screens/LudoBoardScreen';
 import OtpScreen from '../screens/OtpScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SplashScreen from '../screens/SplashScreen';
+import WaitingForOpponentScreen from '../screens/WaitingForOpponentScreen';
 import WalletScreen from '../screens/WalletScreen';
 
 const Stack = createNativeStackNavigator();
@@ -31,6 +32,10 @@ const Navigation = () => {
         <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
         <Stack.Screen name="WalletScreen" component={WalletScreen} />
         <Stack.Screen name="LudoBoardScreen" component={LudoBoardScreen} />
+        <Stack.Screen
+          name="WaitingForOpponentScreen"
+          component={WaitingForOpponentScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

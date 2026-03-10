@@ -14,6 +14,12 @@ export const gameSlice = createSlice({
     announceWinners: (state,action) => {
       state.winner = action.payload;
     },
+    hydrateGameFromServer: (state, action) => ({
+      ...state,
+      ...action.payload,
+      settings: state.settings ?? initialState.settings,
+      boardPath: state.boardPath,
+    }),
     updateFireworks: (state, action) => {
       state.isFirework = action.payload;
     },
@@ -59,6 +65,7 @@ export const gameSlice = createSlice({
       }
 
       state.chancePlayer = nextPlayer;
+      state.turnToken += 1;
       state.touchDiceBlock = false;
       state.isDiceRolled = false;
       state.cellSelectionPlayer = -1;
@@ -136,6 +143,7 @@ export const gameSlice = createSlice({
 export const { 
   resetGame, 
   announceWinners,
+  hydrateGameFromServer,
   updateFireworks, 
   updateDiceNo,
   enablePileSelection, 

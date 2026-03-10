@@ -21,6 +21,8 @@ import DiceRoll from '../assets/animation/diceroll.json';
 import ProfilePic from '../assets/profile_placeholder.png';
 import CoinIcon from '../assets/coin_icon.png';
 import WalletIcon from '../assets/wallet.png';
+import {ensureSignedIn} from '../firebase/auth';
+import {createRoom} from '../firebase/rooms';
 import { navigate } from '../helpers/NavigationUtil';
 import { playSound, stopSound } from '../helpers/SoundUtility';
 import { selectCurrentPositions } from '../redux/reducers/gameSelectors';
@@ -74,6 +76,31 @@ const HomeScreen = ({ navigation }) => {
       console.error(e);
     }
   }, [dispatch]);
+
+  const startOnlineMatch = useCallback(async () => {
+    try {
+      await stopSound();
+      dispatch(resetGame());
+
+      const user = await ensureSignedIn('Player 1');
+      const roomId = await createRoom({
+        uid: user.uid,
+        name: user.displayName || 'Player 1',
+      });
+
+      navigation.navigate('WaitingForOpponentScreen', {
+        roomId,
+        playerNo: 1,
+      });
+      playSound('game_start');
+    } catch (error) {
+      console.error(error);
+      Alert.alert(
+        'Online match unavailable',
+        'Could not create an online room. Check Firebase setup and try again.',
+      );
+    }
+  }, [dispatch, navigation]);
 
   return (
     <LinearGradient
@@ -147,7 +174,7 @@ const HomeScreen = ({ navigation }) => {
       {/* ── Play Online button ── */}
       <TouchableOpacity
         activeOpacity={0.85}
-        onPress={() => startGame(true)}
+        onPress={startOnlineMatch}
         style={styles.btnShadow}
       >
         <LinearGradient
