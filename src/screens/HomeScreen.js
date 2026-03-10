@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -21,7 +21,7 @@ import DiceRoll from '../assets/animation/diceroll.json';
 import ProfilePic from '../assets/profile_placeholder.png';
 import CoinIcon from '../assets/coin_icon.png';
 import WalletIcon from '../assets/wallet.png';
-import {ensureSignedIn} from '../firebase/auth';
+import {ensureSignedIn, getCurrentUser} from '../firebase/auth';
 import {createRoom} from '../firebase/rooms';
 import { navigate } from '../helpers/NavigationUtil';
 import { playSound, stopSound } from '../helpers/SoundUtility';
@@ -37,16 +37,32 @@ const TICKER_MESSAGES = [
   'Amit S. has won ₹10.0 with Rank 1',
 ];
 
+const getUserLabel = user => {
+  if (user?.displayName?.trim()) {
+    return user.displayName.trim();
+  }
+
+  if (user?.email) {
+    return user.email.split('@')[0];
+  }
+
+  return 'Player';
+};
+
 const HomeScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const currentPositions = useSelector(selectCurrentPositions);
   const isFocused = useIsFocused();
+  const [user, setUser] = useState(() => getCurrentUser());
 
   const tickerX = useRef(new Animated.Value(width)).current;
   const tickerIndex = useRef(0);
 
   useEffect(() => {
-    if (isFocused) playSound('home');
+    if (isFocused) {
+      setUser(getCurrentUser());
+      playSound('home');
+    }
   }, [isFocused]);
 
   useEffect(() => {
@@ -64,7 +80,7 @@ const HomeScreen = ({ navigation }) => {
       });
     };
     runTicker();
-  }, []);
+  }, [tickerX]);
 
   const startGame = useCallback(async (isNew = false) => {
     try {
@@ -82,10 +98,10 @@ const HomeScreen = ({ navigation }) => {
       await stopSound();
       dispatch(resetGame());
 
-      const user = await ensureSignedIn('Player 1');
+      const signedInUser = await ensureSignedIn();
       const roomId = await createRoom({
-        uid: user.uid,
-        name: user.displayName || 'Player 1',
+        uid: signedInUser.uid,
+        name: signedInUser.displayName || 'Player 1',
       });
 
       navigation.navigate('WaitingForOpponentScreen', {
@@ -118,11 +134,21 @@ const HomeScreen = ({ navigation }) => {
       {/* ── Top nav bar ── */}
       <View style={styles.topBar}>
         {/* Avatar + name + wallet */}
-        <View style={styles.userSection}>
-          <Image source={ProfilePic} style={styles.avatar} />
+        <TouchableOpacity
+          style={styles.userSection}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('ProfileScreen')}>
+          <Image
+            source={user?.photoURL ? {uri: user.photoURL} : ProfilePic}
+            style={styles.avatar}
+          />
           <View style={styles.userInfo}>
-            <Text style={styles.userName} numberOfLines={1}>Player</Text>
-            <TouchableOpacity style={styles.walletRow} onPress={() => navigation.navigate('WalletScreen')}>
+            <Text style={styles.userName} numberOfLines={1}>
+              {getUserLabel(user)}
+            </Text>
+            <TouchableOpacity
+              style={styles.walletRow}
+              onPress={() => navigation.navigate('WalletScreen')}>
               <Image source={WalletIcon} style={styles.walletIcon} resizeMode="contain" />
               <Text style={styles.walletAmount}>₹1</Text>
               <View style={styles.addBtn}>
@@ -130,7 +156,7 @@ const HomeScreen = ({ navigation }) => {
               </View>
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Right icons */}
         <View style={styles.iconRow}>

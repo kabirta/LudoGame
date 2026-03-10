@@ -18,6 +18,7 @@ const firebaseConfig = {
     process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ??
     'YOUR_MESSAGING_SENDER_ID',
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? 'YOUR_FIREBASE_APP_ID',
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);

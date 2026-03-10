@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Alert,
-  Dimensions,
   Platform,
   ScrollView,
   StatusBar,
@@ -13,8 +12,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { stopSound } from '../helpers/SoundUtility';
-
-const { width } = Dimensions.get('window');
 
 // ── Language pill toggle ──────────────────────────────────────────
 const LanguageToggle = ({ value, onChange }) => (
@@ -128,7 +125,7 @@ const SettingsScreen = ({ navigation }) => {
           <SettingRow
             icon={<Ionicons name="person-outline" {...iconProps} />}
             label="My Profile"
-            onPress={() => Alert.alert('My Profile', 'Coming soon!')}
+            onPress={() => navigation.navigate('ProfileScreen')}
           />
           <View style={styles.separator} />
 

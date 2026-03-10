@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
   Alert,
   Animated,
@@ -13,7 +13,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import {LinearGradient} from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 
 import BoardBg from '../assets/images/bg.jpeg';
@@ -21,64 +23,180 @@ import RedPile from '../assets/images/piles/red.png';
 import BluePile from '../assets/images/piles/blue.png';
 import CoinIcon from '../assets/coin_icon.png';
 import DiceRoll from '../assets/animation/diceroll.json';
-import { resetAndNavigate } from '../helpers/NavigationUtil';
+import {
+  googleAuthConfig,
+  hasGoogleAuthConfig,
+  signInWithGoogleTokens,
+} from '../firebase/auth';
+import {resetAndNavigate} from '../helpers/NavigationUtil';
 
-const { width, height } = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 
-const LoginScreen = ({ navigation }) => {
+WebBrowser.maybeCompleteAuthSession();
+
+const LoginScreen = ({navigation}) => {
   const [phone, setPhone] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: googleAuthConfig.androidClientId,
+    iosClientId: googleAuthConfig.iosClientId,
+    webClientId: googleAuthConfig.webClientId,
+    scopes: ['openid', 'profile', 'email'],
+    selectAccount: true,
+  });
+  const googleRequiresDevBuild =
+    request?.redirectUri?.startsWith('exp://') ||
+    request?.redirectUri?.startsWith('exps://');
 
-  // Token collision animation
   const redX = useRef(new Animated.Value(-width * 0.25)).current;
   const blueX = useRef(new Animated.Value(width * 0.25)).current;
   const flashOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const collide = () => {
-      // Reset
       redX.setValue(-width * 0.25);
       blueX.setValue(width * 0.25);
       flashOpacity.setValue(0);
 
       Animated.sequence([
-        // Slide toward each other
         Animated.parallel([
-          Animated.spring(redX, { toValue: -18, friction: 5, tension: 60, useNativeDriver: true }),
-          Animated.spring(blueX, { toValue: 18, friction: 5, tension: 60, useNativeDriver: true }),
+          Animated.spring(redX, {
+            toValue: -18,
+            friction: 5,
+            tension: 60,
+            useNativeDriver: true,
+          }),
+          Animated.spring(blueX, {
+            toValue: 18,
+            friction: 5,
+            tension: 60,
+            useNativeDriver: true,
+          }),
         ]),
-        // Flash on impact
-        Animated.timing(flashOpacity, { toValue: 1, duration: 80, useNativeDriver: true }),
-        Animated.timing(flashOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-        // Hold
+        Animated.timing(flashOpacity, {
+          toValue: 1,
+          duration: 80,
+          useNativeDriver: true,
+        }),
+        Animated.timing(flashOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
         Animated.delay(1200),
-        // Reset outward
         Animated.parallel([
-          Animated.timing(redX, { toValue: -width * 0.25, duration: 400, useNativeDriver: true }),
-          Animated.timing(blueX, { toValue: width * 0.25, duration: 400, useNativeDriver: true }),
+          Animated.timing(redX, {
+            toValue: -width * 0.25,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(blueX, {
+            toValue: width * 0.25,
+            duration: 400,
+            useNativeDriver: true,
+          }),
         ]),
         Animated.delay(600),
       ]).start(() => collide());
     };
 
     collide();
-  }, []);
+  }, [blueX, flashOpacity, redX]);
+
+  useEffect(() => {
+    if (!response) {
+      return;
+    }
+
+    if (response.type !== 'success') {
+      if (response.type === 'error') {
+        Alert.alert(
+          'Google sign-in failed',
+          'Google sign-in could not be completed. Check the OAuth client setup and try again.',
+        );
+      }
+      setGoogleLoading(false);
+      return;
+    }
+
+    const finishGoogleSignIn = async () => {
+      try {
+        const idToken =
+          response.params?.id_token ?? response.authentication?.idToken ?? null;
+        const accessToken =
+          response.params?.access_token ??
+          response.authentication?.accessToken ??
+          null;
+
+        await signInWithGoogleTokens({idToken, accessToken});
+        resetAndNavigate('HomeScreen');
+      } catch (error) {
+        console.error(error);
+        Alert.alert(
+          'Google sign-in failed',
+          'Firebase could not accept the Google account. Make sure Google is enabled in Firebase Auth and the OAuth client matches com.ludo.app.',
+        );
+      } finally {
+        setGoogleLoading(false);
+      }
+    };
+
+    finishGoogleSignIn();
+  }, [response]);
 
   const handleContinue = () => {
     if (phone.length !== 10) {
-      Alert.alert('Invalid Number', 'Please enter a valid 10-digit phone number.');
+      Alert.alert(
+        'Invalid Number',
+        'Please enter a valid 10-digit phone number.',
+      );
       return;
     }
+
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      navigation.navigate('OtpScreen', { phone: `+91${phone}` });
+      navigation.navigate('OtpScreen', {phone: `+91${phone}`});
     }, 500);
   };
 
-  const handleGoogleSignIn = () => {
-    // Placeholder — wire up real Google auth when ready
-    resetAndNavigate('HomeScreen');
+  const handleGoogleSignIn = async () => {
+    if (!hasGoogleAuthConfig) {
+      Alert.alert(
+        'Google sign-in not configured',
+        'Add a Google OAuth client ID to the Expo environment before trying to sign in.',
+      );
+      return;
+    }
+
+    if (!request) {
+      Alert.alert(
+        'Google sign-in unavailable',
+        'The Google auth request is still loading. Try again in a moment.',
+      );
+      return;
+    }
+
+    if (googleRequiresDevBuild) {
+      Alert.alert(
+        'Google sign-in needs a development build',
+        'Expo Go uses an exp:// redirect URI, and Google blocks that. Run npm run android and test Google sign-in in the installed development build instead.',
+      );
+      return;
+    }
+
+    try {
+      setGoogleLoading(true);
+      await promptAsync();
+    } catch (error) {
+      console.error(error);
+      setGoogleLoading(false);
+      Alert.alert(
+        'Google sign-in failed',
+        'Could not open Google sign-in. Try again.',
+      );
+    }
   };
 
   const handleSkip = () => {
@@ -88,21 +206,17 @@ const LoginScreen = ({ navigation }) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-    >
+      style={{flex: 1}}>
       <LinearGradient
         colors={['#040d24', '#0b1e4e', '#0e2a72', '#0b1e4e', '#040d24']}
         locations={[0, 0.2, 0.5, 0.8, 1]}
-        style={styles.container}
-      >
+        style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#040d24" />
 
-        {/* Skip */}
         <TouchableOpacity onPress={handleSkip} style={styles.skipBtn}>
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
 
-        {/* Brand title */}
         <View style={styles.titleContainer}>
           <View>
             <Text style={[styles.ludoText, styles.ludoTextOutline]}>LUDO</Text>
@@ -111,32 +225,27 @@ const LoginScreen = ({ navigation }) => {
           <Text style={styles.supremeText}>SUPREME</Text>
         </View>
 
-        {/* Board with token collision */}
         <View style={styles.boardContainer}>
           <Image source={BoardBg} style={styles.boardImage} resizeMode="cover" />
 
-          {/* Tokens */}
           <View style={styles.tokensOverlay}>
             <Animated.Image
               source={RedPile}
-              style={[styles.token, { transform: [{ translateX: redX }] }]}
+              style={[styles.token, {transform: [{translateX: redX}]}]}
               resizeMode="contain"
             />
-            {/* Collision flash */}
-            <Animated.View style={[styles.flash, { opacity: flashOpacity }]} />
+            <Animated.View style={[styles.flash, {opacity: flashOpacity}]} />
             <Animated.Image
               source={BluePile}
-              style={[styles.token, { transform: [{ translateX: blueX }] }]}
+              style={[styles.token, {transform: [{translateX: blueX}]}]}
               resizeMode="contain"
             />
           </View>
         </View>
 
-        {/* Form area */}
         <View style={styles.formArea}>
           <Text style={styles.signupHeading}>Signup to play!</Text>
 
-          {/* Phone input */}
           <View style={styles.inputRow}>
             <Text style={styles.countryCode}>+91</Text>
             <View style={styles.divider} />
@@ -153,35 +262,72 @@ const LoginScreen = ({ navigation }) => {
             />
           </View>
 
-          {/* OR separator */}
           <View style={styles.orRow}>
             <View style={styles.orLine} />
             <Text style={styles.orText}>OR</Text>
             <View style={styles.orLine} />
           </View>
 
-          {/* Google sign in */}
-          <TouchableOpacity style={styles.googleBtn} onPress={handleGoogleSignIn} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[
+              styles.googleBtn,
+              (googleLoading || !request) && styles.googleBtnDisabled,
+            ]}
+            onPress={handleGoogleSignIn}
+            activeOpacity={0.8}
+            disabled={googleLoading || !request}>
             <Text style={styles.googleG}>G</Text>
-            <Text style={styles.googleBtnText}>Sign in with Google</Text>
+            <Text style={styles.googleBtnText}>
+              {googleLoading ? 'Connecting...' : 'Sign in with Google'}
+            </Text>
           </TouchableOpacity>
+
+          {googleRequiresDevBuild ? (
+            <Text style={styles.googleHint}>
+              Google sign-in is blocked in Expo Go. Use the Android development
+              build for this button.
+            </Text>
+          ) : null}
         </View>
 
-        {/* Coins bottom left */}
         <View style={styles.coinsContainer}>
-          <Image source={CoinIcon} style={[styles.coin, { bottom: 28, left: 0 }]} resizeMode="contain" />
-          <Image source={CoinIcon} style={[styles.coin, { bottom: 44, left: 22 }]} resizeMode="contain" />
-          <Image source={CoinIcon} style={[styles.coin, { bottom: 16, left: 40 }]} resizeMode="contain" />
-          <Image source={CoinIcon} style={[styles.coin, { bottom: 38, left: 58 }]} resizeMode="contain" />
-          <Image source={CoinIcon} style={[styles.coin, { bottom: 8, left: 76 }]} resizeMode="contain" />
+          <Image
+            source={CoinIcon}
+            style={[styles.coin, {bottom: 28, left: 0}]}
+            resizeMode="contain"
+          />
+          <Image
+            source={CoinIcon}
+            style={[styles.coin, {bottom: 44, left: 22}]}
+            resizeMode="contain"
+          />
+          <Image
+            source={CoinIcon}
+            style={[styles.coin, {bottom: 16, left: 40}]}
+            resizeMode="contain"
+          />
+          <Image
+            source={CoinIcon}
+            style={[styles.coin, {bottom: 38, left: 58}]}
+            resizeMode="contain"
+          />
+          <Image
+            source={CoinIcon}
+            style={[styles.coin, {bottom: 8, left: 76}]}
+            resizeMode="contain"
+          />
         </View>
 
-        {/* Dice bottom right */}
         <View style={styles.diceContainer}>
-          <LottieView source={DiceRoll} autoPlay loop speed={0.6} style={styles.dice} />
+          <LottieView
+            source={DiceRoll}
+            autoPlay
+            loop
+            speed={0.6}
+            style={styles.dice}
+          />
         </View>
 
-        {/* Terms */}
         <Text style={styles.terms}>
           By logging in you agree to the{'\n'}
           <Text style={styles.termsLink}>Terms & Conditions</Text>
@@ -217,8 +363,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-
-  // Brand title
   titleContainer: {
     alignItems: 'center',
     marginBottom: 8,
@@ -238,7 +382,7 @@ const styles = StyleSheet.create({
     color: '#64b5f6',
     position: 'relative',
     textShadowColor: 'rgba(100, 200, 255, 0.9)',
-    textShadowOffset: { width: 0, height: 0 },
+    textShadowOffset: {width: 0, height: 0},
     textShadowRadius: 14,
   },
   supremeText: {
@@ -248,21 +392,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: 8,
     textShadowColor: 'rgba(255,255,255,0.4)',
-    textShadowOffset: { width: 0, height: 0 },
+    textShadowOffset: {width: 0, height: 0},
     textShadowRadius: 6,
   },
-
-  // Board
   boardContainer: {
     width: width * 0.9,
     height: height * 0.28,
     borderRadius: 16,
     overflow: 'hidden',
     marginTop: 10,
-    transform: [{ perspective: 800 }, { rotateX: '18deg' }],
+    transform: [{perspective: 800}, {rotateX: '18deg'}],
     elevation: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: {width: 0, height: 8},
     shadowOpacity: 0.5,
     shadowRadius: 12,
   },
@@ -291,13 +433,11 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: '#fff9c4',
     shadowColor: '#ffff00',
-    shadowOffset: { width: 0, height: 0 },
+    shadowOffset: {width: 0, height: 0},
     shadowOpacity: 1,
     shadowRadius: 20,
     elevation: 10,
   },
-
-  // Form
   formArea: {
     width: width * 0.88,
     marginTop: 20,
@@ -370,6 +510,9 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 14 : 12,
     gap: 10,
   },
+  googleBtnDisabled: {
+    opacity: 0.65,
+  },
   googleG: {
     fontSize: 18,
     fontWeight: '900',
@@ -381,8 +524,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-
-  // Decorations
+  googleHint: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 10,
+    paddingHorizontal: 4,
+    textAlign: 'center',
+  },
   coinsContainer: {
     position: 'absolute',
     bottom: 32,
@@ -404,8 +553,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
   },
-
-  // Terms
   terms: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 34 : 18,
