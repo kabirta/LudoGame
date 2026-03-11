@@ -2,7 +2,7 @@ import {initializeApp, getApps, getApp} from 'firebase/app';
 import {getAuth} from 'firebase/auth';
 import {getDatabase} from 'firebase/database';
 
-import {firebaseConfig} from './androidConfig';
+import {firebaseConfig} from './runtimeConfig';
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 

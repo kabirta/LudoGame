@@ -15,7 +15,8 @@ The Firebase client files added in `src/firebase/` are the app-side foundation:
 1. Install the dependency:
    `npm install firebase`
 2. Keep the Android `google-services.json` in the project root so the app and
-   build can derive Firebase config from the Android app registration.
+   native build can configure Firebase services.
+3. Keep the JS runtime Firebase config in `src/firebase/runtimeConfig.js`.
 
 ## 2. Home screen integration
 

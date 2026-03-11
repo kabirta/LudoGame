@@ -6,7 +6,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 
-import {googleAuthConfig} from './androidConfig';
+import {googleAuthConfig} from './runtimeConfig';
 import {auth} from './config';
 
 export {googleAuthConfig};
