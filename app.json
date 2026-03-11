@@ -2,7 +2,8 @@
   "expo": {
     "name": "Ludo App",
     "slug": "ludo-app",
-    "scheme": "com.ludo.app",
+    "scheme": "com.kabir.ludozeng",
+    "newArchEnabled": true,
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/images/logo.png",
@@ -17,14 +18,15 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.ludo.app"
+      "bundleIdentifier": "com.kabir.ludozeng"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/logo.png",
         "backgroundColor": "#1a1a2e"
       },
-      "package": "com.ludo.app",
+      "package": "com.kabir.ludozeng",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]

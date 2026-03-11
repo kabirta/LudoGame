@@ -40,8 +40,6 @@ const LoginScreen = ({navigation}) => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: googleAuthConfig.androidClientId,
-    iosClientId: googleAuthConfig.iosClientId,
-    webClientId: googleAuthConfig.webClientId,
     scopes: ['openid', 'profile', 'email'],
     selectAccount: true,
   });
@@ -135,7 +133,7 @@ const LoginScreen = ({navigation}) => {
         console.error(error);
         Alert.alert(
           'Google sign-in failed',
-          'Firebase could not accept the Google account. Make sure Google is enabled in Firebase Auth and the OAuth client matches com.ludo.app.',
+          'Firebase could not accept the Google account. Make sure Google is enabled in Firebase Auth and the OAuth client matches com.kabir.ludozeng.',
         );
       } finally {
         setGoogleLoading(false);

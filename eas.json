@@ -3,12 +3,23 @@
     "version": ">= 18.0.1"
   },
   "build": {
-    "preview": {
+    "development": {
+      "environment": "development",
+      "developmentClient": true,
       "distribution": "internal",
       "android": {
         "buildType": "apk"
       }
     },
-    "production": {}
+    "preview": {
+      "environment": "preview",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "environment": "production"
+    }
   }
 }

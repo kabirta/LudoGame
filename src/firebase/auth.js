@@ -6,19 +6,12 @@ import {
   updateProfile,
 } from 'firebase/auth';
 
+import {googleAuthConfig} from './androidConfig';
 import {auth} from './config';
 
-export const googleAuthConfig = {
-  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-};
+export {googleAuthConfig};
 
-export const hasGoogleAuthConfig = Boolean(
-  googleAuthConfig.androidClientId ||
-    googleAuthConfig.iosClientId ||
-    googleAuthConfig.webClientId,
-);
+export const hasGoogleAuthConfig = Boolean(googleAuthConfig.androidClientId);
 
 export const ensureSignedIn = async displayName => {
   const currentUser = auth.currentUser;

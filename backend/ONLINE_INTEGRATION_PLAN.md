@@ -14,14 +14,8 @@ The Firebase client files added in `src/firebase/` are the app-side foundation:
 
 1. Install the dependency:
    `npm install firebase`
-2. Add Expo public env values:
-   - `EXPO_PUBLIC_FIREBASE_API_KEY`
-   - `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`
-   - `EXPO_PUBLIC_FIREBASE_DATABASE_URL`
-   - `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
-   - `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`
-   - `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-   - `EXPO_PUBLIC_FIREBASE_APP_ID`
+2. Keep the Android `google-services.json` in the project root so the app and
+   build can derive Firebase config from the Android app registration.
 
 ## 2. Home screen integration
 
