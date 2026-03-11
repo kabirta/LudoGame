@@ -41,6 +41,8 @@ const Dice = React.memo(({
   data,
   compact = false,
   bubble = false,
+  disabled = false,
+  onPress,
   rollTimeoutProgress = 1,
 }) => {
   const timerStrokeLength = 4 * (66 - 16) + 2 * Math.PI * 16;
@@ -59,6 +61,11 @@ const Dice = React.memo(({
   const [diceRolling, setDiceRolling] = useState(false);
 
   const handleDicePress = async () => {
+    if (typeof onPress === 'function') {
+      await onPress({player});
+      return;
+    }
+
     const newDiceNo = rollDice();
     const nextSixCount = newDiceNo === 6 ? consecutiveSixCount + 1 : 0;
 
@@ -97,7 +104,7 @@ const Dice = React.memo(({
     }
   };
 
-  const canInteract = currentPlayerChance === player;
+  const canInteract = !disabled && currentPlayerChance === player;
   const useSmallDiceLayout = bubble || compact;
 
   if (useSmallDiceLayout) {
@@ -242,7 +249,7 @@ const Dice = React.memo(({
             className="bg-[#e8c0c1] border border-[#e8c0c1] rounded-[5px] justify-center items-center"
             style={{ width: 60, height: 70, paddingHorizontal: 8, paddingVertical: 8, padding: 4 }}
           >
-            {currentPlayerChance === player ? (
+            {canInteract ? (
               <>
                 {diceRolling ? null : (
                   <TouchableOpacity

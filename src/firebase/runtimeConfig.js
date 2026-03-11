@@ -9,6 +9,8 @@ export const firebaseConfig = {
 };
 
 export const googleAuthConfig = {
+  webClientId:
+    '158282372705-4sfhm1337tokaeuma9r3te4aa0ho4onh.apps.googleusercontent.com',
   androidClientId:
-    '158282372705-lcn9v909id0u51vvr6khllq4egm12v9a.apps.googleusercontent.com',
+    '158282372705-5t52jiku83s69irait826mes6r3l8a5l.apps.googleusercontent.com',
 };

@@ -8,6 +8,7 @@ import React, {
 
 import {LinearGradient} from 'expo-linear-gradient';
 import {
+  Alert,
   Animated,
   Image,
   Text,
@@ -55,6 +56,15 @@ import {
 } from '../helpers/PlotData';
 import {playSound} from '../helpers/SoundUtility';
 import {
+  getCurrentUser,
+} from '../firebase/auth';
+import {
+  queueRoomAction,
+  setPlayerConnected,
+  subscribeToRoom,
+  subscribeToRoomGame,
+} from '../firebase/rooms';
+import {
   selectCurrentPlayerChance,
   selectDiceTouch,
   selectMissedRolls,
@@ -65,6 +75,7 @@ import {
 } from '../redux/reducers/gameSelectors';
 import {
   announceWinners,
+  hydrateGameFromServer,
   recordMissedRoll,
   updatePlayerChance,
 } from '../redux/reducers/gameSlice';
@@ -191,7 +202,7 @@ const PrizePoolBanner = () => {
   );
 };
 
-const LudoBoardScreen = () => {
+const LudoBoardScreen = ({route}) => {
   const dispatch = useDispatch();
   const player1 = useSelector(selectPlayer1);
   const player2 = useSelector(selectPlayer2);
@@ -204,6 +215,10 @@ const LudoBoardScreen = () => {
   const isFocused = useIsFocused();
   const {seconds, formatTime} = useGameTime(5 * 60);
   const timerCompletedRef = useRef(false);
+  const gameMode = route?.params?.gameMode ?? 'offline';
+  const roomId = route?.params?.roomId ?? null;
+  const playerNo = route?.params?.playerNo ?? null;
+  const isOnlineMode = gameMode === 'online' && Boolean(roomId);
 
   const opacity = useRef(new Animated.Value(1)).current;
   const [menuVisible, setMenuVisible] = useState(false);
@@ -211,10 +226,17 @@ const LudoBoardScreen = () => {
   const [turnRollProgress, setTurnRollProgress] = useState(1);
   const [turnMissBanner, setTurnMissBanner] = useState(null);
   const [missedTurnInfoPlayer, setMissedTurnInfoPlayer] = useState(null);
+  const [room, setRoom] = useState(null);
+  const [roomLoaded, setRoomLoaded] = useState(false);
+  const [isQueuingRoomAction, setIsQueuingRoomAction] = useState(false);
   const boardSize = Math.min(deviceWidth * 0.965, deviceHeight * 0.59);
-  const opponentAvatarSize = Math.min(deviceWidth * 0.15, 70);
   const firstMoverAvatarSize = Math.min(deviceWidth * 0.15, 70);
   const footerNameWidth = Math.min(deviceWidth * 0.42, 80);
+  const isRoomPlaying = !isOnlineMode || room?.status === 'playing';
+  const isWaitingForOpponent = isOnlineMode && (!roomLoaded || !isRoomPlaying);
+  const topPlayerName = room?.players?.player2?.name ?? 'Player 2';
+  const bottomPlayerName = room?.players?.player1?.name ?? 'Player 1';
+  const timerLabel = isOnlineMode ? 'LIVE' : formatTime(seconds);
 
   const handleMenuPress = useCallback(() => {
     playSound('ui');
@@ -225,10 +247,10 @@ const LudoBoardScreen = () => {
     playSound('ui');
   }, []);
 
-  const handleMissedTurnInfoPress = useCallback(playerNo => {
+  const handleMissedTurnInfoPress = useCallback(targetPlayerNo => {
     playSound('ui');
     setMissedTurnInfoPlayer(currentPlayer =>
-      currentPlayer === playerNo ? null : playerNo,
+      currentPlayer === targetPlayerNo ? null : targetPlayerNo,
     );
   }, []);
 
@@ -240,6 +262,107 @@ const LudoBoardScreen = () => {
     setMissedTurnInfoPlayer(null);
   }, []);
 
+  const enqueueOnlineRoomAction = useCallback(async (type, payload = {}) => {
+    if (!isOnlineMode || !roomId || !playerNo || room?.status !== 'playing') {
+      return;
+    }
+
+    const currentUser = getCurrentUser();
+    if (!currentUser?.uid) {
+      Alert.alert(
+        'Sign-in required',
+        'You need an authenticated Firebase user before sending online moves.',
+      );
+      return;
+    }
+
+    if (isQueuingRoomAction) {
+      return;
+    }
+
+    try {
+      setIsQueuingRoomAction(true);
+      playSound('ui');
+      await queueRoomAction({
+        roomId,
+        uid: currentUser.uid,
+        playerNo,
+        type,
+        payload,
+      });
+    } catch (error) {
+      console.error('Failed to queue online room action.', error);
+      Alert.alert(
+        'Action failed',
+        'Could not queue the online action. Check Firebase Database rules and try again.',
+      );
+    } finally {
+      setIsQueuingRoomAction(false);
+    }
+  }, [isOnlineMode, isQueuingRoomAction, playerNo, room?.status, roomId]);
+
+  const handleOnlineDicePress = useCallback(async () => {
+    await enqueueOnlineRoomAction('ROLL_DICE');
+  }, [enqueueOnlineRoomAction]);
+
+  const handleOnlineTokenPress = useCallback(async pieceId => {
+    await enqueueOnlineRoomAction('MOVE_TOKEN', {pieceId});
+  }, [enqueueOnlineRoomAction]);
+
+  useEffect(() => {
+    if (!isOnlineMode || !roomId) {
+      setRoom(null);
+      setRoomLoaded(false);
+      return undefined;
+    }
+
+    setRoomLoaded(false);
+    const unsubscribe = subscribeToRoom(roomId, nextRoom => {
+      setRoom(nextRoom);
+      setRoomLoaded(true);
+    });
+
+    return unsubscribe;
+  }, [isOnlineMode, roomId]);
+
+  useEffect(() => {
+    if (!isOnlineMode || !roomId) {
+      return undefined;
+    }
+
+    const unsubscribe = subscribeToRoomGame(roomId, game => {
+      if (game) {
+        dispatch(hydrateGameFromServer(game));
+      }
+    });
+
+    return unsubscribe;
+  }, [dispatch, isOnlineMode, roomId]);
+
+  useEffect(() => {
+    if (!isOnlineMode || !roomId || !playerNo) {
+      return undefined;
+    }
+
+    setPlayerConnected({
+      roomId,
+      playerNo,
+      connected: true,
+    }).catch(error => {
+      console.error('Failed to mark player connected.', error);
+    });
+
+    return () => {
+      setPlayerConnected({
+        roomId,
+        playerNo,
+        connected: false,
+      }).catch(error => {
+        console.error('Failed to mark player disconnected.', error);
+      });
+    };
+  }, [isOnlineMode, playerNo, roomId]);
+
   useEffect(() => {
     if (isFocused) {
       timerCompletedRef.current = false;
@@ -247,6 +370,10 @@ const LudoBoardScreen = () => {
   }, [isFocused]);
 
   useEffect(() => {
+    if (isOnlineMode) {
+      return;
+    }
+
     if (seconds !== 0 || winner != null || timerCompletedRef.current) {
       return;
     }
@@ -256,9 +383,14 @@ const LudoBoardScreen = () => {
     const player2Score = scores?.player2 ?? 0;
     const finalWinner = player2Score > player1Score ? 2 : 1;
     dispatch(announceWinners(finalWinner));
-  }, [dispatch, scores, seconds, winner]);
+  }, [dispatch, isOnlineMode, scores, seconds, winner]);
 
   useEffect(() => {
+    if (isOnlineMode) {
+      setShowStartImage(false);
+      return undefined;
+    }
+
     if (!isFocused) {
       return undefined;
     }
@@ -290,7 +422,7 @@ const LudoBoardScreen = () => {
       blinkAnimation.stop();
       clearTimeout(timeout);
     };
-  }, [isFocused, opacity]);
+  }, [isFocused, isOnlineMode, opacity]);
 
   useEffect(() => {
     if (!turnMissBanner) {
@@ -307,6 +439,11 @@ const LudoBoardScreen = () => {
   }, [turnMissBanner]);
 
   useEffect(() => {
+    if (isOnlineMode) {
+      setTurnRollProgress(1);
+      return undefined;
+    }
+
     if (!isFocused || winner != null) {
       setTurnRollProgress(1);
       return undefined;
@@ -348,7 +485,7 @@ const LudoBoardScreen = () => {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [currentPlayerChance, dispatch, isFocused, missedRolls, turnToken, winner]);
+  }, [currentPlayerChance, dispatch, isFocused, isOnlineMode, missedRolls, turnToken, winner]);
 
   const selectedMissedTurnCount =
     missedTurnInfoPlayer == null
@@ -487,7 +624,7 @@ const LudoBoardScreen = () => {
                     fontVariant: ['tabular-nums'],
                   }}
                 >
-                  {formatTime(seconds)}
+                  {timerLabel}
                 </Text>
               </LinearGradient>
 
@@ -527,7 +664,7 @@ const LudoBoardScreen = () => {
                   style={{color: '#ffffff', fontSize: 14, fontWeight: '600' ,right: -15}}
                   numberOfLines={1}
                 >
-                  Hira
+                  {topPlayerName}
                 </Text>
               </LinearGradient>
             </View>
@@ -546,6 +683,8 @@ const LudoBoardScreen = () => {
                   color={Colors.red}
                   player={2}
                   data={player2}
+                  disabled={isWaitingForOpponent || isQueuingRoomAction}
+                  onPress={isOnlineMode ? handleOnlineDicePress : undefined}
                   rollTimeoutProgress={turnRollProgress}
                 />
               </View>
@@ -596,7 +735,11 @@ const LudoBoardScreen = () => {
                 >
                   <View className="w-full h-[40%] justify-between flex-row bg-[#cacad1]">
                     <Pocket color={Colors.blue} player={4} data={[]} />
-                    <VerticalPath cells={Plot2Data} color={Colors.red} />
+                    <VerticalPath
+                      cells={Plot2Data}
+                      color={Colors.red}
+                      onTokenPress={isOnlineMode ? handleOnlineTokenPress : undefined}
+                    />
                     <Pocket
                       color={Colors.red}
                       player={2}
@@ -607,14 +750,22 @@ const LudoBoardScreen = () => {
                   </View>
 
                   <View className="flex-row w-full h-[20%] justify-between bg-[#cacad1]">
-                    <HorizontalPath cells={Plot1Data} color={Colors.blue} />
+                    <HorizontalPath
+                      cells={Plot1Data}
+                      color={Colors.blue}
+                      onTokenPress={isOnlineMode ? handleOnlineTokenPress : undefined}
+                    />
                     <FourTriangles
                       player1={player1}
                       player2={player2}
                       player3={[]}
                       player4={[]}
                     />
-                    <HorizontalPath cells={Plot3Data} color={Colors.green} />
+                    <HorizontalPath
+                      cells={Plot3Data}
+                      color={Colors.green}
+                      onTokenPress={isOnlineMode ? handleOnlineTokenPress : undefined}
+                    />
                   </View>
 
                   <View className="w-full h-[40%] justify-between flex-row bg-[#cacad1]">
@@ -625,7 +776,11 @@ const LudoBoardScreen = () => {
                       score={scores?.player1 ?? 0}
                       scoreLabel="First Mover"
                     />
-                    <VerticalPath cells={Plot4Data} color={Colors.yellow} />
+                    <VerticalPath
+                      cells={Plot4Data}
+                      color={Colors.yellow}
+                      onTokenPress={isOnlineMode ? handleOnlineTokenPress : undefined}
+                    />
                     <Pocket color={Colors.green} player={3} data={[]} />
                   </View>
                 </View>
@@ -713,6 +868,8 @@ const LudoBoardScreen = () => {
                   color={Colors.yellow}
                   player={1}
                   data={player1}
+                  disabled={isWaitingForOpponent || isQueuingRoomAction}
+                  onPress={isOnlineMode ? handleOnlineDicePress : undefined}
                   rollTimeoutProgress={turnRollProgress}
                 />
               </View>
@@ -758,7 +915,7 @@ const LudoBoardScreen = () => {
                     }}
                     numberOfLines={1}
                   >
-                    kabir
+                    {bottomPlayerName}
                   </Text>
                 </LinearGradient>
 
@@ -824,6 +981,86 @@ const LudoBoardScreen = () => {
                   }}
                 >
                   {turnMissBanner.message}
+                </Text>
+              </LinearGradient>
+            </View>
+          ) : null}
+
+          {isWaitingForOpponent ? (
+            <View
+              pointerEvents="auto"
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(4, 13, 36, 0.64)',
+                zIndex: 35,
+                paddingHorizontal: 24,
+              }}
+            >
+              <LinearGradient
+                colors={['rgba(7, 20, 59, 0.96)', 'rgba(11, 31, 93, 0.96)']}
+                style={{
+                  width: '100%',
+                  maxWidth: 320,
+                  borderRadius: 22,
+                  borderWidth: 1,
+                  borderColor: 'rgba(126,167,255,0.55)',
+                  paddingHorizontal: 22,
+                  paddingVertical: 20,
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    color: '#f4d56a',
+                    fontSize: 12,
+                    fontWeight: '800',
+                    letterSpacing: 2,
+                  }}
+                >
+                  ONLINE ROOM
+                </Text>
+                <Text
+                  style={{
+                    marginTop: 10,
+                    color: '#ffffff',
+                    fontSize: 24,
+                    fontWeight: '900',
+                    textAlign: 'center',
+                  }}
+                >
+                  {roomLoaded && room
+                    ? 'Waiting for opponent'
+                    : 'Connecting to room'}
+                </Text>
+                <Text
+                  style={{
+                    marginTop: 10,
+                    color: 'rgba(219,229,255,0.82)',
+                    fontSize: 14,
+                    lineHeight: 20,
+                    textAlign: 'center',
+                  }}
+                >
+                  {roomId
+                    ? `Room code: ${roomId}`
+                    : 'Preparing a room for online play.'}
+                </Text>
+                <Text
+                  style={{
+                    marginTop: 12,
+                    color: 'rgba(126,231,156,0.95)',
+                    fontSize: 13,
+                    fontWeight: '700',
+                    textAlign: 'center',
+                  }}
+                >
+                  The board will unlock automatically when a second player joins.
                 </Text>
               </LinearGradient>
             </View>

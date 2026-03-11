@@ -1,20 +1,23 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
   Image,
+  Modal,
   Platform,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useIsFocused } from '@react-navigation/native';
 
 import DiceRoll from '../assets/animation/diceroll.json';
@@ -22,10 +25,8 @@ import ProfilePic from '../assets/profile_placeholder.png';
 import CoinIcon from '../assets/coin_icon.png';
 import WalletIcon from '../assets/wallet.png';
 import {ensureSignedIn, getCurrentUser} from '../firebase/auth';
-import {createRoom} from '../firebase/rooms';
-import { navigate } from '../helpers/NavigationUtil';
+import {createRoom, findJoinableRoom, joinRoom} from '../firebase/rooms';
 import { playSound, stopSound } from '../helpers/SoundUtility';
-import { selectCurrentPositions } from '../redux/reducers/gameSelectors';
 import { resetGame } from '../redux/reducers/gameSlice';
 
 const { width } = Dimensions.get('window');
@@ -51,9 +52,12 @@ const getUserLabel = user => {
 
 const HomeScreen = ({ navigation }) => {
   const dispatch = useDispatch();
-  const currentPositions = useSelector(selectCurrentPositions);
   const isFocused = useIsFocused();
   const [user, setUser] = useState(() => getCurrentUser());
+  const [roomSheetVisible, setRoomSheetVisible] = useState(false);
+  const [roomActionLoading, setRoomActionLoading] = useState(false);
+  const [joinRoomCode, setJoinRoomCode] = useState('');
+  const [createdRoomId, setCreatedRoomId] = useState(null);
 
   const tickerX = useRef(new Animated.Value(width)).current;
   const tickerIndex = useRef(0);
@@ -82,41 +86,147 @@ const HomeScreen = ({ navigation }) => {
     runTicker();
   }, [tickerX]);
 
-  const startGame = useCallback(async (isNew = false) => {
-    try {
-      await stopSound();
-      if (isNew) dispatch(resetGame());
-      navigate('LudoBoardScreen');
-      playSound('game_start');
-    } catch (e) {
-      console.error(e);
+  const resetPrivateRoomState = useCallback(() => {
+    setJoinRoomCode('');
+    setCreatedRoomId(null);
+  }, []);
+
+  const closePrivateRoomSheet = useCallback(() => {
+    if (roomActionLoading) {
+      return;
     }
-  }, [dispatch]);
+
+    resetPrivateRoomState();
+    setRoomSheetVisible(false);
+  }, [resetPrivateRoomState, roomActionLoading]);
+
+  const openPrivateRoomSheet = useCallback(() => {
+    playSound('ui');
+    resetPrivateRoomState();
+    setRoomSheetVisible(true);
+  }, [resetPrivateRoomState]);
+
+  const navigateToOnlineRoom = useCallback(async ({roomId, playerNo}) => {
+    await stopSound();
+    dispatch(resetGame());
+    resetPrivateRoomState();
+    setRoomSheetVisible(false);
+    navigation.navigate('LudoBoardScreen', {
+      roomId,
+      gameMode: 'online',
+      playerNo,
+    });
+    playSound('game_start');
+  }, [dispatch, navigation, resetPrivateRoomState]);
 
   const startOnlineMatch = useCallback(async () => {
     try {
       await stopSound();
       dispatch(resetGame());
 
-      const signedInUser = await ensureSignedIn();
-      const roomId = await createRoom({
-        uid: signedInUser.uid,
-        name: signedInUser.displayName || 'Player 1',
+      const signedInUser = await ensureSignedIn('Player');
+      const playerName = getUserLabel(signedInUser);
+      const waitingRoom = await findJoinableRoom({
+        excludeUid: signedInUser.uid,
       });
 
-      navigation.navigate('WaitingForOpponentScreen', {
+      let roomId = null;
+      let playerNo = 1;
+
+      if (waitingRoom?.roomId) {
+        try {
+          await joinRoom({
+            roomId: waitingRoom.roomId,
+            uid: signedInUser.uid,
+            name: playerName,
+          });
+          roomId = waitingRoom.roomId;
+          playerNo = 2;
+        } catch (joinError) {
+          console.warn('Waiting room join failed, creating a new room instead.', joinError);
+        }
+      }
+
+      if (!roomId) {
+        roomId = await createRoom({
+          uid: signedInUser.uid,
+          name: playerName,
+        });
+        playerNo = 1;
+      }
+
+      navigation.navigate('LudoBoardScreen', {
         roomId,
-        playerNo: 1,
+        gameMode: 'online',
+        playerNo,
       });
       playSound('game_start');
     } catch (error) {
       console.error(error);
       Alert.alert(
         'Online match unavailable',
-        'Could not create an online room. Check Firebase setup and try again.',
+        'Could not join or create an online room. Check Firebase setup and try again.',
       );
     }
   }, [dispatch, navigation]);
+
+  const createPrivateRoom = useCallback(async () => {
+    try {
+      setRoomActionLoading(true);
+
+      const signedInUser = await ensureSignedIn();
+      const playerName = getUserLabel(signedInUser);
+      const roomId = await createRoom({
+        uid: signedInUser.uid,
+        name: playerName,
+      });
+
+      setCreatedRoomId(roomId);
+    } catch (error) {
+      console.error(error);
+      Alert.alert(
+        'Room creation failed',
+        'Could not create a private room. Check Firebase setup and try again.',
+      );
+    } finally {
+      setRoomActionLoading(false);
+    }
+  }, []);
+
+  const joinPrivateRoom = useCallback(async () => {
+    const roomId = joinRoomCode.trim();
+
+    if (!roomId) {
+      Alert.alert('Room code required', 'Enter the exact room code to join.');
+      return;
+    }
+
+    try {
+      setRoomActionLoading(true);
+
+      const signedInUser = await ensureSignedIn();
+      const playerName = getUserLabel(signedInUser);
+
+      await joinRoom({
+        roomId,
+        uid: signedInUser.uid,
+        name: playerName,
+      });
+
+      await navigateToOnlineRoom({
+        roomId,
+        playerNo: 2,
+      });
+    } catch (error) {
+      console.error(error);
+      Alert.alert(
+        'Join failed',
+        'Could not join that room. Verify the room code and Firebase access, then try again.',
+      );
+    } finally {
+      setRoomActionLoading(false);
+    }
+  }, [joinRoomCode, navigateToOnlineRoom]);
 
   return (
     <LinearGradient
@@ -218,13 +328,7 @@ const HomeScreen = ({ navigation }) => {
       {/* ── Play with Friends button ── */}
       <TouchableOpacity
         activeOpacity={0.85}
-        onPress={() => {
-          if (currentPositions.length !== 0) {
-            startGame(false);
-          } else {
-            Alert.alert('Coming Soon', 'Multiplayer with friends is coming soon!');
-          }
-        }}
+        onPress={openPrivateRoomSheet}
         style={[styles.btnShadow, { marginTop: 14 }]}
       >
         <LinearGradient
@@ -251,6 +355,131 @@ const HomeScreen = ({ navigation }) => {
           </Animated.Text>
         </View>
       </View>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={closePrivateRoomSheet}
+        transparent
+        visible={roomSheetVisible}
+      >
+        <View style={styles.roomModalRoot}>
+          <TouchableOpacity
+            activeOpacity={1}
+            disabled={roomActionLoading}
+            onPress={closePrivateRoomSheet}
+            style={styles.roomModalBackdrop}
+          />
+
+          <LinearGradient
+            colors={['#0a1b48', '#102a68', '#0b1c45']}
+            style={styles.roomModalCard}
+          >
+            <View style={styles.roomModalHeader}>
+              <View>
+                <Text style={styles.roomModalEyebrow}>PRIVATE MATCH</Text>
+                <Text style={styles.roomModalTitle}>
+                  {createdRoomId ? 'Room created' : 'Play with friends'}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.82}
+                disabled={roomActionLoading}
+                onPress={closePrivateRoomSheet}
+                style={styles.roomModalCloseButton}
+              >
+                <Ionicons name="close" size={18} color="#dbe6ff" />
+              </TouchableOpacity>
+            </View>
+
+            {createdRoomId ? (
+              <>
+                <Text style={styles.roomModalDescription}>
+                  Share this exact room code with your friend, then enter the room and wait for them to join.
+                </Text>
+
+                <View style={styles.roomCodeCard}>
+                  <Text selectable style={styles.roomCodeText}>
+                    {createdRoomId}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  onPress={() => navigateToOnlineRoom({roomId: createdRoomId, playerNo: 1})}
+                  style={styles.roomPrimaryAction}
+                >
+                  <LinearGradient
+                    colors={['#ffb300', '#ff8f00', '#e65100']}
+                    style={styles.roomPrimaryActionFill}
+                  >
+                    <MaterialCommunityIcons name="door-open" size={20} color="#ffffff" />
+                    <Text style={styles.roomPrimaryActionText}>Enter Room</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.roomModalDescription}>
+                  Create a private room or join an existing one with the room code.
+                </Text>
+
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  disabled={roomActionLoading}
+                  onPress={createPrivateRoom}
+                  style={styles.roomPrimaryAction}
+                >
+                  <LinearGradient
+                    colors={['#2c7df7', '#1658d4', '#0a3ea7']}
+                    style={styles.roomPrimaryActionFill}
+                  >
+                    {roomActionLoading ? (
+                      <ActivityIndicator color="#ffffff" />
+                    ) : (
+                      <>
+                        <MaterialCommunityIcons name="plus-circle" size={20} color="#ffffff" />
+                        <Text style={styles.roomPrimaryActionText}>Create Room</Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <View style={styles.roomDivider}>
+                  <View style={styles.roomDividerLine} />
+                  <Text style={styles.roomDividerText}>OR JOIN WITH CODE</Text>
+                  <View style={styles.roomDividerLine} />
+                </View>
+
+                <View style={styles.roomInputShell}>
+                  <Ionicons name="key-outline" size={18} color="#98b4ff" />
+                  <TextInput
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!roomActionLoading}
+                    onChangeText={setJoinRoomCode}
+                    placeholder="Paste room code"
+                    placeholderTextColor="rgba(210,225,255,0.45)"
+                    style={styles.roomInput}
+                    value={joinRoomCode}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  disabled={roomActionLoading}
+                  onPress={joinPrivateRoom}
+                  style={styles.roomSecondaryAction}
+                >
+                  <Text style={styles.roomSecondaryActionText}>
+                    {roomActionLoading ? 'Joining...' : 'Join Room'}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </LinearGradient>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -474,5 +703,137 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     width: width * 1.5,
+  },
+  roomModalRoot: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  roomModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2, 10, 28, 0.78)',
+  },
+  roomModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(136,170,255,0.55)',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  roomModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  roomModalEyebrow: {
+    color: '#74a4ff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+  roomModalTitle: {
+    marginTop: 8,
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  roomModalCloseButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roomModalDescription: {
+    marginTop: 14,
+    color: 'rgba(222,231,255,0.85)',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  roomCodeCard: {
+    marginTop: 18,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(126,167,255,0.5)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+  },
+  roomCodeText: {
+    color: '#f9db79',
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  roomPrimaryAction: {
+    marginTop: 18,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  roomPrimaryActionFill: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  roomPrimaryActionText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  roomDivider: {
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  roomDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(140,170,238,0.35)',
+  },
+  roomDividerText: {
+    color: 'rgba(173,194,245,0.8)',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  roomInputShell: {
+    marginTop: 18,
+    minHeight: 54,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(129,159,235,0.48)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  roomInput: {
+    flex: 1,
+    marginLeft: 10,
+    color: '#ffffff',
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  roomSecondaryAction: {
+    marginTop: 14,
+    minHeight: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(138,170,255,0.55)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roomSecondaryActionText: {
+    color: '#dbe6ff',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });

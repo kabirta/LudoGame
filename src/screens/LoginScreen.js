@@ -13,8 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import Constants, {ExecutionEnvironment} from 'expo-constants';
 import {LinearGradient} from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 
@@ -24,28 +23,23 @@ import BluePile from '../assets/images/piles/blue.png';
 import CoinIcon from '../assets/coin_icon.png';
 import DiceRoll from '../assets/animation/diceroll.json';
 import {
-  googleAuthConfig,
+  configureGoogleSignIn,
+  googleSignInStatusCodes,
   hasGoogleAuthConfig,
-  signInWithGoogleTokens,
+  hasNativeGoogleSignInModule,
+  signInWithGoogle,
 } from '../firebase/auth';
 import {resetAndNavigate} from '../helpers/NavigationUtil';
 
 const {width, height} = Dimensions.get('window');
 
-WebBrowser.maybeCompleteAuthSession();
-
 const LoginScreen = ({navigation}) => {
   const [phone, setPhone] = useState('');
   const [, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: googleAuthConfig.androidClientId,
-    scopes: ['openid', 'profile', 'email'],
-    selectAccount: true,
-  });
-  const googleRequiresDevBuild =
-    request?.redirectUri?.startsWith('exp://') ||
-    request?.redirectUri?.startsWith('exps://');
+  const isExpoGo =
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+  const hasNativeGoogleModule = hasNativeGoogleSignInModule();
 
   const redX = useRef(new Animated.Value(-width * 0.25)).current;
   const blueX = useRef(new Animated.Value(width * 0.25)).current;
@@ -103,45 +97,8 @@ const LoginScreen = ({navigation}) => {
   }, [blueX, flashOpacity, redX]);
 
   useEffect(() => {
-    if (!response) {
-      return;
-    }
-
-    if (response.type !== 'success') {
-      if (response.type === 'error') {
-        Alert.alert(
-          'Google sign-in failed',
-          'Google sign-in could not be completed. Check the OAuth client setup and try again.',
-        );
-      }
-      setGoogleLoading(false);
-      return;
-    }
-
-    const finishGoogleSignIn = async () => {
-      try {
-        const idToken =
-          response.params?.id_token ?? response.authentication?.idToken ?? null;
-        const accessToken =
-          response.params?.access_token ??
-          response.authentication?.accessToken ??
-          null;
-
-        await signInWithGoogleTokens({idToken, accessToken});
-        resetAndNavigate('HomeScreen');
-      } catch (error) {
-        console.error(error);
-        Alert.alert(
-          'Google sign-in failed',
-          'Firebase could not accept the Google account. Make sure Google is enabled in Firebase Auth and the OAuth client matches com.kabir.ludozeng.',
-        );
-      } finally {
-        setGoogleLoading(false);
-      }
-    };
-
-    finishGoogleSignIn();
-  }, [response]);
+    configureGoogleSignIn();
+  }, []);
 
   const handleContinue = () => {
     if (phone.length !== 10) {
@@ -163,37 +120,66 @@ const LoginScreen = ({navigation}) => {
     if (!hasGoogleAuthConfig) {
       Alert.alert(
         'Google sign-in not configured',
-        'Add a Google OAuth client ID to the Expo environment before trying to sign in.',
+        'Add the Google Web OAuth client ID before trying to sign in.',
       );
       return;
     }
 
-    if (!request) {
+    if (isExpoGo) {
       Alert.alert(
-        'Google sign-in unavailable',
-        'The Google auth request is still loading. Try again in a moment.',
+        'Google sign-in needs a native build',
+        'Expo Go cannot load the native Google Play Services module. Install the Android development build or a release build instead.',
       );
       return;
     }
 
-    if (googleRequiresDevBuild) {
+    if (!hasNativeGoogleModule) {
       Alert.alert(
-        'Google sign-in needs a development build',
-        'Expo Go uses an exp:// redirect URI, and Google blocks that. Run npm run android and test Google sign-in in the installed development build instead.',
+        'Google sign-in needs a rebuild',
+        'This installed Android app does not include the RNGoogleSignin native module. Rebuild and reinstall the native app, then start Metro with the development client.',
       );
       return;
     }
 
     try {
       setGoogleLoading(true);
-      await promptAsync();
+      const user = await signInWithGoogle();
+
+      if (!user) {
+        return;
+      }
+
+      resetAndNavigate('HomeScreen');
     } catch (error) {
       console.error(error);
-      setGoogleLoading(false);
+
+      if (error?.code === googleSignInStatusCodes.SIGN_IN_CANCELLED) {
+        return;
+      }
+
+      let message =
+        'Could not complete native Google sign-in. Verify Google Play Services, the Web OAuth client ID, and that the Android OAuth client in Firebase/Google Cloud includes the SHA-1 for the keystore used to sign this build.';
+
+      if (
+        error?.code === googleSignInStatusCodes.PLAY_SERVICES_NOT_AVAILABLE
+      ) {
+        message =
+          'Google Play Services is unavailable or needs an update on this device.';
+      } else if (error?.code === googleSignInStatusCodes.IN_PROGRESS) {
+        message = 'Google sign-in is already in progress.';
+      } else if (
+        error?.code === googleSignInStatusCodes.NATIVE_MODULE_NOT_FOUND
+      ) {
+        message =
+          'The current app binary does not include RNGoogleSignin. Use the rebuilt Android development build or release APK instead of Expo Go.';
+      }
+
       Alert.alert(
         'Google sign-in failed',
-        'Could not open Google sign-in. Try again.',
+        message,
       );
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -269,21 +255,22 @@ const LoginScreen = ({navigation}) => {
           <TouchableOpacity
             style={[
               styles.googleBtn,
-              (googleLoading || !request) && styles.googleBtnDisabled,
+              googleLoading && styles.googleBtnDisabled,
             ]}
             onPress={handleGoogleSignIn}
             activeOpacity={0.8}
-            disabled={googleLoading || !request}>
+            disabled={googleLoading}>
             <Text style={styles.googleG}>G</Text>
             <Text style={styles.googleBtnText}>
               {googleLoading ? 'Connecting...' : 'Sign in with Google'}
             </Text>
           </TouchableOpacity>
 
-          {googleRequiresDevBuild ? (
+          {isExpoGo || !hasNativeGoogleModule ? (
             <Text style={styles.googleHint}>
-              Google sign-in is blocked in Expo Go. Use the Android development
-              build for this button.
+              Native Google sign-in is unavailable in Expo Go or an outdated
+              binary. Use the rebuilt Android development build for this
+              button.
             </Text>
           ) : null}
         </View>

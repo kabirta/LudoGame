@@ -1,8 +1,11 @@
 import {
+  equalTo,
   get,
   off,
   onValue,
+  orderByChild,
   push,
+  query,
   ref,
   runTransaction,
   serverTimestamp,
@@ -103,6 +106,42 @@ export const joinRoom = async ({roomId, uid, name}) => {
 export const getRoom = async roomId => {
   const snapshot = await get(ref(db, `rooms/${roomId}`));
   return snapshot.exists() ? snapshot.val() : null;
+};
+
+export const findJoinableRoom = async ({excludeUid} = {}) => {
+  const roomsQuery = query(
+    ref(db, 'rooms'),
+    orderByChild('status'),
+    equalTo('waiting'),
+  );
+  const snapshot = await get(roomsQuery);
+
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  let matchedRoom = null;
+
+  snapshot.forEach(childSnapshot => {
+    const room = childSnapshot.val();
+
+    if (
+      room &&
+      room.hostUid !== excludeUid &&
+      room.players?.player1?.uid &&
+      !room.players?.player2
+    ) {
+      matchedRoom = {
+        roomId: childSnapshot.key,
+        room,
+      };
+      return true;
+    }
+
+    return false;
+  });
+
+  return matchedRoom;
 };
 
 export const subscribeToRoom = (roomId, callback) => {
