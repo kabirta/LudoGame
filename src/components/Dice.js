@@ -44,6 +44,7 @@ const Dice = React.memo(({
   disabled = false,
   onPress,
   rollTimeoutProgress = 1,
+  interactivePlayerNo = null,
 }) => {
   const timerStrokeLength = 4 * (66 - 16) + 2 * Math.PI * 16;
   const isInFinalCountdown = rollTimeoutProgress <= 5 / 15;
@@ -104,7 +105,10 @@ const Dice = React.memo(({
     }
   };
 
-  const canInteract = !disabled && currentPlayerChance === player;
+  const isOwnedByLocalPlayer =
+    interactivePlayerNo == null || interactivePlayerNo === player;
+  const canInteract =
+    !disabled && isOwnedByLocalPlayer && currentPlayerChance === player;
   const useSmallDiceLayout = bubble || compact;
 
   if (useSmallDiceLayout) {

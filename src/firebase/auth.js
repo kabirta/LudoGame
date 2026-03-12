@@ -3,12 +3,16 @@ import {
   signOut,
   signInAnonymously,
   signInWithCredential,
-  updateProfile,
 } from 'firebase/auth';
 import {NativeModules, TurboModuleRegistry} from 'react-native';
 
 import {googleAuthConfig} from './runtimeConfig';
 import {auth} from './config';
+import {
+  ensureUserProfile,
+  getUserProfile,
+  updateUserDisplayNameOnce,
+} from './users';
 
 export {googleAuthConfig};
 
@@ -64,27 +68,28 @@ export const configureGoogleSignIn = () => {
 };
 
 export const ensureSignedIn = async displayName => {
-  const currentUser = auth.currentUser;
+  let currentUser = auth.currentUser;
 
-  if (currentUser) {
-    if (displayName && currentUser.displayName !== displayName) {
-      await updateProfile(currentUser, {displayName});
-    }
-
-    return currentUser;
+  if (!currentUser) {
+    const credential = await signInAnonymously(auth);
+    currentUser = credential.user;
   }
 
-  const credential = await signInAnonymously(auth);
-  const signedInUser = credential.user;
-
-  if (displayName) {
-    await updateProfile(signedInUser, {displayName});
-  }
-
-  return signedInUser;
+  await ensureUserProfile(currentUser, displayName);
+  return currentUser;
 };
 
 export const getCurrentUser = () => auth.currentUser;
+
+export const getCurrentUserProfile = async () => {
+  const currentUser = auth.currentUser;
+
+  if (!currentUser?.uid) {
+    return null;
+  }
+
+  return getUserProfile(currentUser.uid);
+};
 
 export const updateCurrentUserProfile = async updates => {
   const currentUser = auth.currentUser;
@@ -93,8 +98,12 @@ export const updateCurrentUserProfile = async updates => {
     throw new Error('No signed-in user to update.');
   }
 
-  await updateProfile(currentUser, updates);
-  return currentUser;
+  if (typeof updates?.displayName === 'string') {
+    return updateUserDisplayNameOnce(currentUser, updates.displayName);
+  }
+
+  await ensureUserProfile(currentUser);
+  return getUserProfile(currentUser.uid);
 };
 
 export const signOutCurrentUser = async () => {
@@ -132,6 +141,7 @@ export const signInWithGoogleTokens = async ({idToken, accessToken}) => {
     accessToken ?? null,
   );
   const result = await signInWithCredential(auth, credential);
+  await ensureUserProfile(result.user);
 
   return result.user;
 };

@@ -32,6 +32,7 @@
       ]
     },
     "plugins": [
+      "expo-dev-client",
       "expo-font",
       [
         "expo-av",
@@ -41,11 +42,11 @@
       ],
       "expo-web-browser"
     ],
+    "owner": "kabirtmandal",
     "extra": {
       "eas": {
-        "projectId": "b1612f9f-03f2-4c34-9b3a-6d0a95632539"
+        "projectId": "5dbe91da-0cb6-44af-947e-5117777bad25"
       }
-    },
-    "owner": "kabir_2512"
+    }
   }
 }

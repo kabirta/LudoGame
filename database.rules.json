@@ -1,0 +1,92 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      ".read": "auth != null",
+      ".indexOn": ["status"],
+      "$roomId": {
+        ".write": "auth != null && ((!data.exists() && newData.child('hostUid').val() === auth.uid && newData.child('status').val() === 'waiting' && newData.child('players/player1/uid').val() === auth.uid) || (data.exists() && (data.child('hostUid').val() === auth.uid || data.child('players/player1/uid').val() === auth.uid || data.child('players/player2/uid').val() === auth.uid || (data.child('status').val() === 'waiting' && !data.child('players/player2').exists() && newData.child('players/player2/uid').val() === auth.uid && newData.child('status').val() === 'playing'))))",
+        ".validate": "newData.hasChildren(['status','hostUid','players','game'])",
+        "status": {
+          ".validate": "newData.isString() && (newData.val() === 'waiting' || newData.val() === 'playing' || newData.val() === 'finished')"
+        },
+        "hostUid": {
+          ".validate": "newData.isString() && (!data.exists() ? newData.val() === auth.uid : newData.val() === data.val())"
+        },
+        "players": {
+          "player1": {
+            ".validate": "newData.hasChildren(['uid','name','connected'])",
+            "uid": {
+              ".validate": "newData.isString() && (!data.exists() ? newData.val() === auth.uid : newData.val() === data.val())"
+            },
+            "name": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+            },
+            "connected": {
+              ".validate": "newData.isBoolean()"
+            }
+          },
+          "player2": {
+            ".validate": "!newData.exists() || (newData.hasChildren(['uid','name','connected']) && newData.child('uid').isString() && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.child('connected').isBoolean())"
+          }
+        },
+        "game": {
+          ".validate": "newData.exists()"
+        },
+        "createdAt": {
+          ".validate": "newData.exists()"
+        },
+        "updatedAt": {
+          ".validate": "newData.exists()"
+        },
+        "$other": {
+          ".validate": true
+        }
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['displayName','baseDisplayName','nameChangeCount','isAnonymous','createdAt','updatedAt']) && newData.child('displayName').isString() && newData.child('displayName').val().length > 0 && newData.child('displayName').val().length <= 40 && newData.child('baseDisplayName').isString() && newData.child('baseDisplayName').val().length > 0 && newData.child('baseDisplayName').val().length <= 40 && newData.child('nameChangeCount').isNumber() && (newData.child('nameChangeCount').val() === 0 || newData.child('nameChangeCount').val() === 1) && newData.child('isAnonymous').isBoolean() && (!data.exists() ? ((newData.child('nameChangeCount').val() === 0 && newData.child('displayName').val() === newData.child('baseDisplayName').val()) || (newData.child('nameChangeCount').val() === 1 && newData.child('displayName').val() !== newData.child('baseDisplayName').val())) : ((!data.child('baseDisplayName').exists() || newData.child('baseDisplayName').val() === data.child('baseDisplayName').val()) && (!data.child('createdAt').exists() || newData.child('createdAt').val() === data.child('createdAt').val()) && (((!data.child('nameChangeCount').exists() || data.child('nameChangeCount').val() === 0) && ((newData.child('nameChangeCount').val() === 0 && ((!data.child('displayName').exists() && newData.child('displayName').val() === newData.child('baseDisplayName').val()) || newData.child('displayName').val() === data.child('displayName').val())) || (newData.child('nameChangeCount').val() === 1 && newData.child('displayName').val() !== newData.child('baseDisplayName').val()))) || (data.child('nameChangeCount').val() === 1 && newData.child('nameChangeCount').val() === 1 && newData.child('displayName').val() === data.child('displayName').val()))))",
+        "displayName": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+        },
+        "baseDisplayName": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+        },
+        "nameChangeCount": {
+          ".validate": "newData.isNumber() && (newData.val() === 0 || newData.val() === 1)"
+        },
+        "email": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 120)"
+        },
+        "photoURL": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 500)"
+        },
+        "isAnonymous": {
+          ".validate": "newData.isBoolean()"
+        },
+        "createdAt": {
+          ".validate": "newData.exists()"
+        },
+        "updatedAt": {
+          ".validate": "newData.exists()"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "roomActions": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$actionId": {
+          ".write": "auth != null && newData.child('uid').val() === auth.uid",
+          ".validate": "newData.hasChildren(['uid','playerNo','type','status','createdAt']) && newData.child('uid').isString() && newData.child('uid').val() === auth.uid && newData.child('playerNo').isNumber() && (newData.child('playerNo').val() === 1 || newData.child('playerNo').val() === 2) && newData.child('type').isString() && ((newData.child('type').val() === 'ROLL_DICE') || (newData.child('type').val() === 'MOVE_TOKEN' && newData.child('payload/pieceId').isString() && newData.child('payload/pieceId').val().length > 0)) && newData.child('status').isString() && newData.child('status').val() === 'pending'"
+        }
+      }
+    }
+  }
+}

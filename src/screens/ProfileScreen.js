@@ -19,9 +19,11 @@ import ProfilePlaceholder from '../assets/profile_placeholder.png';
 import {
   ensureSignedIn,
   getCurrentUser,
+  getCurrentUserProfile,
   signOutCurrentUser,
   updateCurrentUserProfile,
 } from '../firebase/auth';
+import {getFirebaseSetupErrorMessage} from '../firebase/errorMessages';
 import {resetAndNavigate} from '../helpers/NavigationUtil';
 
 const getDisplayName = user => {
@@ -30,7 +32,7 @@ const getDisplayName = user => {
   }
 
   if (user?.email) {
-    return user.email.split('@')[0];
+    return user.email.trim();
   }
 
   return 'Guest Player';
@@ -77,9 +79,9 @@ const formatJoinDate = user => {
   });
 };
 
-const getAvatarInitials = user => {
-  const name = getDisplayName(user);
-  return name
+const getAvatarInitials = name => {
+  const safeName = `${name ?? ''}`.trim() || 'Guest Player';
+  return safeName
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
@@ -89,6 +91,7 @@ const getAvatarInitials = user => {
 
 const ProfileScreen = ({navigation}) => {
   const [user, setUser] = useState(() => getCurrentUser());
+  const [profile, setProfile] = useState(null);
   const [displayName, setDisplayName] = useState(() =>
     getDisplayName(getCurrentUser()),
   );
@@ -97,11 +100,61 @@ const ProfileScreen = ({navigation}) => {
 
   useFocusEffect(
     useCallback(() => {
-      const currentUser = getCurrentUser();
-      setUser(currentUser);
-      setDisplayName(getDisplayName(currentUser));
+      let isActive = true;
+
+      const syncProfile = async () => {
+        const currentUser = getCurrentUser();
+
+        if (!currentUser) {
+          if (isActive) {
+            setUser(null);
+            setProfile(null);
+            setDisplayName(getDisplayName(null));
+          }
+          return;
+        }
+
+        try {
+          const storedProfile =
+            (await updateCurrentUserProfile({})) ||
+            (await getCurrentUserProfile());
+
+          if (!isActive) {
+            return;
+          }
+
+          const nextUser = getCurrentUser() || currentUser;
+          setUser(nextUser);
+          setProfile(storedProfile);
+          setDisplayName(storedProfile?.displayName || getDisplayName(nextUser));
+        } catch (error) {
+          console.warn('Profile refresh failed.', error);
+
+          if (!isActive) {
+            return;
+          }
+
+          setUser(currentUser);
+          setProfile(null);
+          setDisplayName(getDisplayName(currentUser));
+        }
+      };
+
+      syncProfile();
+
+      return () => {
+        isActive = false;
+      };
     }, []),
   );
+
+  const effectiveDisplayName = profile?.displayName || getDisplayName(user);
+  const baseDisplayName = profile?.baseDisplayName || getDisplayName(user);
+  const hasUsedNameChange = (profile?.nameChangeCount ?? 0) >= 1;
+  const canEditDisplayName = !hasUsedNameChange;
+  const nameHint = hasUsedNameChange
+    ? 'Your one display-name change has already been used. This name is now locked.'
+    : `Base name: ${baseDisplayName}. You can change it one time.`;
 
   const avatarSource = useMemo(() => {
     if (user?.photoURL) {
@@ -140,21 +193,51 @@ const ProfileScreen = ({navigation}) => {
       return;
     }
 
+    if (hasUsedNameChange && trimmedName !== effectiveDisplayName) {
+      Alert.alert(
+        'Name locked',
+        'Your display name can only be changed once.',
+      );
+      return;
+    }
+
     setSaving(true);
 
     try {
-      const nextUser = user
-        ? await updateCurrentUserProfile({displayName: trimmedName})
-        : await ensureSignedIn(trimmedName);
+      const previousNameChangeCount = profile?.nameChangeCount ?? 0;
+      let nextUser = user;
+      let nextProfile = null;
 
-      setUser(nextUser);
-      setDisplayName(getDisplayName(nextUser));
-      Alert.alert('Profile updated', 'Your display name has been saved.');
+      if (user) {
+        nextProfile = await updateCurrentUserProfile({displayName: trimmedName});
+        nextUser = getCurrentUser();
+      } else {
+        nextUser = await ensureSignedIn(trimmedName);
+        nextProfile = await getCurrentUserProfile();
+      }
+
+      const resolvedUser = nextUser || getCurrentUser();
+      const resolvedDisplayName =
+        nextProfile?.displayName || getDisplayName(resolvedUser);
+      const consumedNameChange =
+        previousNameChangeCount === 0 &&
+        (nextProfile?.nameChangeCount ?? 0) === 1 &&
+        nextProfile?.displayName !== nextProfile?.baseDisplayName;
+
+      setUser(resolvedUser);
+      setProfile(nextProfile);
+      setDisplayName(resolvedDisplayName);
+      Alert.alert(
+        'Profile updated',
+        consumedNameChange
+          ? 'Your display name has been saved. This was your one allowed change.'
+          : 'Your display name has been saved.',
+      );
     } catch (error) {
       console.error(error);
       Alert.alert(
         'Profile update failed',
-        'Could not save your profile right now. Try again.',
+        getFirebaseSetupErrorMessage(error),
       );
     } finally {
       setSaving(false);
@@ -213,7 +296,7 @@ const ProfileScreen = ({navigation}) => {
               <Image source={avatarSource} style={styles.avatarImage} />
               <View style={styles.initialBadge}>
                 <Text style={styles.initialBadgeText}>
-                  {getAvatarInitials(user)}
+                  {getAvatarInitials(effectiveDisplayName)}
                 </Text>
               </View>
             </View>
@@ -229,7 +312,7 @@ const ProfileScreen = ({navigation}) => {
                   {getProviderLabel(user)} account
                 </Text>
               </View>
-              <Text style={styles.heroName}>{getDisplayName(user)}</Text>
+              <Text style={styles.heroName}>{effectiveDisplayName}</Text>
               <Text style={styles.heroSubtitle}>
                 {user?.email || 'Personalize your player card for online matches'}
               </Text>
@@ -256,11 +339,16 @@ const ProfileScreen = ({navigation}) => {
           <Text style={styles.panelEyebrow}>Edit identity</Text>
           <Text style={styles.panelTitle}>How other players will see you</Text>
           <Text style={styles.panelBody}>
-            Update your display name to personalize room hosting and future
-            multiplayer matches.
+            Google sign-in starts with your email as the permanent base name.
+            You can replace it once for room hosting and future multiplayer
+            matches.
           </Text>
 
-          <View style={styles.inputShell}>
+          <View
+            style={[
+              styles.inputShell,
+              !canEditDisplayName && styles.inputShellLocked,
+            ]}>
             <Ionicons
               name="person-circle-outline"
               size={20}
@@ -272,20 +360,30 @@ const ProfileScreen = ({navigation}) => {
               placeholder="Enter display name"
               placeholderTextColor="rgba(214,231,255,0.38)"
               style={styles.input}
+              editable={canEditDisplayName && !saving}
+              maxLength={40}
             />
           </View>
+          <Text style={styles.nameHint}>{nameHint}</Text>
 
           <TouchableOpacity
-            style={[styles.primaryButton, saving && styles.buttonDisabled]}
+            style={[
+              styles.primaryButton,
+              (saving || !canEditDisplayName) && styles.buttonDisabled,
+            ]}
             onPress={saveProfile}
-            disabled={saving}>
+            disabled={saving || !canEditDisplayName}>
             <LinearGradient
               colors={['#fdbb2d', '#ff7b00']}
               start={{x: 0, y: 0}}
               end={{x: 1, y: 1}}
               style={styles.primaryButtonFill}>
               <Text style={styles.primaryButtonText}>
-                {saving ? 'Saving...' : 'Save profile'}
+                {saving
+                  ? 'Saving...'
+                  : canEditDisplayName
+                    ? 'Save profile'
+                    : 'Name change used'}
               </Text>
               <Ionicons name="arrow-forward" size={18} color="#1b0f00" />
             </LinearGradient>
@@ -299,6 +397,22 @@ const ProfileScreen = ({navigation}) => {
             <Text style={styles.infoLabel}>Email</Text>
             <Text style={styles.infoValue}>
               {user?.email || 'Not connected to email'}
+            </Text>
+          </View>
+
+          <View style={styles.infoDivider} />
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Base name</Text>
+            <Text style={styles.infoValue}>{baseDisplayName}</Text>
+          </View>
+
+          <View style={styles.infoDivider} />
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Name changes left</Text>
+            <Text style={styles.infoValue}>
+              {hasUsedNameChange ? '0 remaining' : '1 remaining'}
             </Text>
           </View>
 
@@ -559,6 +673,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 4,
   },
+  inputShellLocked: {
+    opacity: 0.56,
+  },
   input: {
     flex: 1,
     marginLeft: 10,
@@ -566,6 +683,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     paddingVertical: 14,
+  },
+  nameHint: {
+    marginTop: 10,
+    color: 'rgba(214,231,255,0.64)',
+    fontSize: 13,
+    lineHeight: 19,
   },
   primaryButton: {
     marginTop: 18,

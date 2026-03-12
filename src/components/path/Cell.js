@@ -10,7 +10,7 @@ import { handleForwardThunk } from '../../redux/reducers/GameAction';
 import { selectCurrentPositions } from '../../redux/reducers/gameSelectors';
 import Pile from '../Pile';
 
-const Cell = ({ id, color, onTokenPress }) => {
+const Cell = ({id, color, onTokenPress, interactivePlayerNo = null}) => {
   const dispatch = useDispatch();
   const plottedPieces = useSelector(selectCurrentPositions);
 
@@ -121,6 +121,7 @@ const Cell = ({ id, color, onTokenPress }) => {
                 onPress={() => handlePress(playerNo, piece.id)}
                 pieceId={piece.id}
                 color={pieceColor}
+                interactivePlayerNo={interactivePlayerNo}
               />
             </View>
           );

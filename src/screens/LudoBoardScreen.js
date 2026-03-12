@@ -58,6 +58,7 @@ import {playSound} from '../helpers/SoundUtility';
 import {
   getCurrentUser,
 } from '../firebase/auth';
+import {getFirebaseSetupErrorMessage} from '../firebase/errorMessages';
 import {
   queueRoomAction,
   setPlayerConnected,
@@ -294,7 +295,7 @@ const LudoBoardScreen = ({route}) => {
       console.error('Failed to queue online room action.', error);
       Alert.alert(
         'Action failed',
-        'Could not queue the online action. Check Firebase Database rules and try again.',
+        getFirebaseSetupErrorMessage(error),
       );
     } finally {
       setIsQueuingRoomAction(false);
@@ -302,12 +303,25 @@ const LudoBoardScreen = ({route}) => {
   }, [isOnlineMode, isQueuingRoomAction, playerNo, room?.status, roomId]);
 
   const handleOnlineDicePress = useCallback(async () => {
+    if (isOnlineMode && room?.game?.chancePlayer !== playerNo) {
+      return;
+    }
+
     await enqueueOnlineRoomAction('ROLL_DICE');
-  }, [enqueueOnlineRoomAction]);
+  }, [enqueueOnlineRoomAction, isOnlineMode, playerNo, room?.game?.chancePlayer]);
 
   const handleOnlineTokenPress = useCallback(async pieceId => {
+    const piecePlayerNo =
+      typeof pieceId === 'string' && pieceId.length > 0
+        ? pieceId.charCodeAt(0) - 64
+        : null;
+
+    if (isOnlineMode && piecePlayerNo !== playerNo) {
+      return;
+    }
+
     await enqueueOnlineRoomAction('MOVE_TOKEN', {pieceId});
-  }, [enqueueOnlineRoomAction]);
+  }, [enqueueOnlineRoomAction, isOnlineMode, playerNo]);
 
   useEffect(() => {
     if (!isOnlineMode || !roomId) {
@@ -440,8 +454,34 @@ const LudoBoardScreen = ({route}) => {
 
   useEffect(() => {
     if (isOnlineMode) {
-      setTurnRollProgress(1);
-      return undefined;
+      if (isWaitingForOpponent || winner != null) {
+        setTurnRollProgress(1);
+        return undefined;
+      }
+
+      const deadlineAt =
+        typeof room?.game?.turnDeadlineAt === 'number'
+          ? room.game.turnDeadlineAt
+          : null;
+
+      if (!deadlineAt) {
+        setTurnRollProgress(1);
+        return undefined;
+      }
+
+      const syncProgress = () => {
+        const remainingMs = Math.max(deadlineAt - Date.now(), 0);
+        setTurnRollProgress(
+          Math.min(remainingMs / (TURN_ROLL_TIMEOUT_SECONDS * 1000), 1),
+        );
+      };
+
+      syncProgress();
+      const interval = setInterval(syncProgress, 100);
+
+      return () => {
+        clearInterval(interval);
+      };
     }
 
     if (!isFocused || winner != null) {
@@ -485,7 +525,17 @@ const LudoBoardScreen = ({route}) => {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [currentPlayerChance, dispatch, isFocused, isOnlineMode, missedRolls, turnToken, winner]);
+  }, [
+    currentPlayerChance,
+    dispatch,
+    isFocused,
+    isOnlineMode,
+    isWaitingForOpponent,
+    missedRolls,
+    room?.game?.turnDeadlineAt,
+    turnToken,
+    winner,
+  ]);
 
   const selectedMissedTurnCount =
     missedTurnInfoPlayer == null
@@ -686,6 +736,7 @@ const LudoBoardScreen = ({route}) => {
                   disabled={isWaitingForOpponent || isQueuingRoomAction}
                   onPress={isOnlineMode ? handleOnlineDicePress : undefined}
                   rollTimeoutProgress={turnRollProgress}
+                  interactivePlayerNo={isOnlineMode ? playerNo : null}
                 />
               </View>
 
@@ -739,6 +790,7 @@ const LudoBoardScreen = ({route}) => {
                       cells={Plot2Data}
                       color={Colors.red}
                       onTokenPress={isOnlineMode ? handleOnlineTokenPress : undefined}
+                      interactivePlayerNo={isOnlineMode ? playerNo : null}
                     />
                     <Pocket
                       color={Colors.red}
@@ -754,6 +806,7 @@ const LudoBoardScreen = ({route}) => {
                       cells={Plot1Data}
                       color={Colors.blue}
                       onTokenPress={isOnlineMode ? handleOnlineTokenPress : undefined}
+                      interactivePlayerNo={isOnlineMode ? playerNo : null}
                     />
                     <FourTriangles
                       player1={player1}
@@ -765,6 +818,7 @@ const LudoBoardScreen = ({route}) => {
                       cells={Plot3Data}
                       color={Colors.green}
                       onTokenPress={isOnlineMode ? handleOnlineTokenPress : undefined}
+                      interactivePlayerNo={isOnlineMode ? playerNo : null}
                     />
                   </View>
 
@@ -780,6 +834,7 @@ const LudoBoardScreen = ({route}) => {
                       cells={Plot4Data}
                       color={Colors.yellow}
                       onTokenPress={isOnlineMode ? handleOnlineTokenPress : undefined}
+                      interactivePlayerNo={isOnlineMode ? playerNo : null}
                     />
                     <Pocket color={Colors.green} player={3} data={[]} />
                   </View>
@@ -871,6 +926,7 @@ const LudoBoardScreen = ({route}) => {
                   disabled={isWaitingForOpponent || isQueuingRoomAction}
                   onPress={isOnlineMode ? handleOnlineDicePress : undefined}
                   rollTimeoutProgress={turnRollProgress}
+                  interactivePlayerNo={isOnlineMode ? playerNo : null}
                 />
               </View>
             </View>

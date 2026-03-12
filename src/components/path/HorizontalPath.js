@@ -6,7 +6,12 @@ import Cell from './Cell'; // Make sure you import your Cell component
 
 // Also ensure `cells` is passed as a prop
 
-const HorizontalPath = React.memo(({ cells, color, onTokenPress }) => {
+const HorizontalPath = React.memo(({
+  cells,
+  color,
+  onTokenPress,
+  interactivePlayerNo = null,
+}) => {
  
  
   const groupedCells = useMemo(() => {
@@ -39,6 +44,7 @@ const HorizontalPath = React.memo(({ cells, color, onTokenPress }) => {
                 id={id}
                 color={color}
                 onTokenPress={onTokenPress}
+                interactivePlayerNo={interactivePlayerNo}
               />
             ))}
           </View>

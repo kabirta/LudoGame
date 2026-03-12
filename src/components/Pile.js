@@ -23,7 +23,14 @@ import {
 } from '../redux/reducers/gameSelectors';
 import TokenPileIcon from './TokenPileIcon';
 
-const Pile = ({ cell, pieceId, player, color, onPress }) => {
+const Pile = ({
+  cell,
+  pieceId,
+  player,
+  color,
+  onPress,
+  interactivePlayerNo = null,
+}) => {
   const defaultPileSize = 30;
   const enabledPileSize = 30;
   const rotation = useRef(new Animated.Value(0)).current;
@@ -39,6 +46,10 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
   const isCellEnabled = useMemo(
     () => player === currentPlayerCellSelection,
     [player, currentPlayerCellSelection],
+  );
+  const isOwnedByLocalPlayer = useMemo(
+    () => interactivePlayerNo == null || interactivePlayerNo === player,
+    [interactivePlayerNo, player],
   );
 
   const isForwardable = useCallback(() => {
@@ -76,13 +87,16 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
         : { position: 'absolute', top: isPileEnabled ? -47 : -30 },
     [cell, isPileEnabled],
   );
-  const showSelectionIndicator = cell ? isCellEnabled && isForwardable() : isPileEnabled;
+  const isInteractiveSelection =
+    isOwnedByLocalPlayer &&
+    (cell ? isCellEnabled && isForwardable() : isPileEnabled);
+  const showSelectionIndicator = isInteractiveSelection;
 
   return (
     <TouchableOpacity
       className="items-center justify-center flex-1 self-center"
       activeOpacity={0.5}
-      disabled={!(cell ? isCellEnabled && isForwardable() : isPileEnabled)}
+      disabled={!isInteractiveSelection}
       onPress={onPress}
     >
       {showSelectionIndicator && (
@@ -97,10 +111,20 @@ const Pile = ({ cell, pieceId, player, color, onPress }) => {
                 height: 40,
                 alignSelf: 'center',
                 justifyContent: 'center',
+                alignItems: 'center',
                 transform: [{ rotate: rotateInterpolate }],
               }}
             >
-              
+              <View
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  borderWidth: 2,
+                  borderStyle: 'dashed',
+                  borderColor: 'rgba(255,255,255,0.82)',
+                }}
+              />
             </Animated.View>
           </View>
         </View>

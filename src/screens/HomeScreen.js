@@ -25,6 +25,7 @@ import ProfilePic from '../assets/profile_placeholder.png';
 import CoinIcon from '../assets/coin_icon.png';
 import WalletIcon from '../assets/wallet.png';
 import {ensureSignedIn, getCurrentUser} from '../firebase/auth';
+import {getFirebaseSetupErrorMessage} from '../firebase/errorMessages';
 import {createRoom, findJoinableRoom, joinRoom} from '../firebase/rooms';
 import { playSound, stopSound } from '../helpers/SoundUtility';
 import { resetGame } from '../redux/reducers/gameSlice';
@@ -38,13 +39,15 @@ const TICKER_MESSAGES = [
   'Amit S. has won ₹10.0 with Rank 1',
 ];
 
+const PRIVATE_ROOM_CODE_LENGTH = 6;
+
 const getUserLabel = user => {
   if (user?.displayName?.trim()) {
     return user.displayName.trim();
   }
 
   if (user?.email) {
-    return user.email.split('@')[0];
+    return user.email.trim();
   }
 
   return 'Player';
@@ -165,7 +168,7 @@ const HomeScreen = ({ navigation }) => {
       console.error(error);
       Alert.alert(
         'Online match unavailable',
-        'Could not join or create an online room. Check Firebase setup and try again.',
+        getFirebaseSetupErrorMessage(error),
       );
     }
   }, [dispatch, navigation]);
@@ -186,7 +189,7 @@ const HomeScreen = ({ navigation }) => {
       console.error(error);
       Alert.alert(
         'Room creation failed',
-        'Could not create a private room. Check Firebase setup and try again.',
+        getFirebaseSetupErrorMessage(error),
       );
     } finally {
       setRoomActionLoading(false);
@@ -197,7 +200,15 @@ const HomeScreen = ({ navigation }) => {
     const roomId = joinRoomCode.trim();
 
     if (!roomId) {
-      Alert.alert('Room code required', 'Enter the exact room code to join.');
+      Alert.alert('Room code required', 'Enter the 6-digit room code to join.');
+      return;
+    }
+
+    if (roomId.length !== PRIVATE_ROOM_CODE_LENGTH) {
+      Alert.alert(
+        'Invalid room code',
+        'Room codes are 6 digits long. Check the code and try again.',
+      );
       return;
     }
 
@@ -221,7 +232,7 @@ const HomeScreen = ({ navigation }) => {
       console.error(error);
       Alert.alert(
         'Join failed',
-        'Could not join that room. Verify the room code and Firebase access, then try again.',
+        getFirebaseSetupErrorMessage(error),
       );
     } finally {
       setRoomActionLoading(false);
@@ -457,8 +468,14 @@ const HomeScreen = ({ navigation }) => {
                     autoCapitalize="none"
                     autoCorrect={false}
                     editable={!roomActionLoading}
-                    onChangeText={setJoinRoomCode}
-                    placeholder="Paste room code"
+                    keyboardType="number-pad"
+                    maxLength={PRIVATE_ROOM_CODE_LENGTH}
+                    onChangeText={value =>
+                      setJoinRoomCode(
+                        value.replace(/\D/g, '').slice(0, PRIVATE_ROOM_CODE_LENGTH),
+                      )
+                    }
+                    placeholder="Enter 6-digit room code"
                     placeholderTextColor="rgba(210,225,255,0.45)"
                     style={styles.roomInput}
                     value={joinRoomCode}

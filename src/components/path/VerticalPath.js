@@ -7,7 +7,7 @@ import {View} from 'react-native';
 
 import Cell from './Cell';
 
-const VerticalPath = ({ cells, color, onTokenPress }) => {
+const VerticalPath = ({cells, color, onTokenPress, interactivePlayerNo = null}) => {
  
   
   const groupedCells = useMemo(() => {
@@ -44,7 +44,8 @@ const VerticalPath = ({ cells, color, onTokenPress }) => {
                         cell={true}
                         id={id}
                         color={color}
-                        onTokenPress={onTokenPress} />
+                        onTokenPress={onTokenPress}
+                        interactivePlayerNo={interactivePlayerNo} />
                     ))}
 
                 </View>

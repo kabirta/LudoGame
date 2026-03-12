@@ -41,6 +41,16 @@ set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
 @rem Find java.exe
 if defined JAVA_HOME goto findJavaFromJavaHome
 
+@rem Fall back to Android Studio's bundled JBR when JAVA_HOME is unset.
+if exist "C:\Program Files\Android\Android Studio\jbr\bin\java.exe" (
+    set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
+    goto findJavaFromJavaHome
+)
+if exist "C:\Program Files\Android\Android Studio\jre\bin\java.exe" (
+    set "JAVA_HOME=C:\Program Files\Android\Android Studio\jre"
+    goto findJavaFromJavaHome
+)
+
 set JAVA_EXE=java.exe
 %JAVA_EXE% -version >NUL 2>&1
 if %ERRORLEVEL% equ 0 goto execute

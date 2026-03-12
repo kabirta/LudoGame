@@ -16,6 +16,18 @@ import {
 import {initialState} from '../redux/reducers/initialState';
 import {db} from './config';
 
+const ROOM_CODE_LENGTH = 6;
+const MAX_ROOM_CODE_ATTEMPTS = 12;
+
+const createRoomError = (code, message) => {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+};
+
+const generateRoomCode = () =>
+  `${Math.floor(Math.random() * 9 * 10 ** (ROOM_CODE_LENGTH - 1)) + 10 ** (ROOM_CODE_LENGTH - 1)}`;
+
 const buildInitialOnlineGameState = () => ({
   player1: initialState.player1,
   player2: initialState.player2,
@@ -42,26 +54,43 @@ const buildInitialOnlineGameState = () => ({
   lastAction: null,
 });
 
-export const createRoom = async ({uid, name}) => {
-  const roomRef = push(ref(db, 'rooms'));
-
-  await set(roomRef, {
-    status: 'waiting',
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    hostUid: uid,
-    players: {
-      player1: {
-        uid,
-        name,
-        connected: true,
-      },
-      player2: null,
+const buildWaitingRoomState = ({uid, name}) => ({
+  status: 'waiting',
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+  hostUid: uid,
+  players: {
+    player1: {
+      uid,
+      name,
+      connected: true,
     },
-    game: buildInitialOnlineGameState(),
-  });
+    player2: null,
+  },
+  game: buildInitialOnlineGameState(),
+});
 
-  return roomRef.key;
+export const createRoom = async ({uid, name}) => {
+  for (let attempt = 0; attempt < MAX_ROOM_CODE_ATTEMPTS; attempt += 1) {
+    const roomId = generateRoomCode();
+    const roomRef = ref(db, `rooms/${roomId}`);
+    const result = await runTransaction(roomRef, currentRoom => {
+      if (currentRoom) {
+        return;
+      }
+
+      return buildWaitingRoomState({uid, name});
+    });
+
+    if (result.committed && result.snapshot.exists()) {
+      return roomId;
+    }
+  }
+
+  throw createRoomError(
+    'room/code-generation-failed',
+    'Could not generate a numeric room code. Please try again.',
+  );
 };
 
 export const joinRoom = async ({roomId, uid, name}) => {
@@ -92,12 +121,18 @@ export const joinRoom = async ({roomId, uid, name}) => {
   });
 
   if (!result.committed || !result.snapshot.exists()) {
-    throw new Error('Room is unavailable');
+    throw createRoomError(
+      'room/unavailable',
+      'Room code is invalid or the room is no longer available.',
+    );
   }
 
   const room = result.snapshot.val();
   if (room?.players?.player2?.uid !== uid) {
-    throw new Error('Room already has two players');
+    throw createRoomError(
+      'room/full',
+      'Room already has two players or the match already started.',
+    );
   }
 
   return room;
