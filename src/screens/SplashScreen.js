@@ -13,6 +13,10 @@ import LottieView from 'lottie-react-native';
 
 import Trophy from '../assets/animation/trophy.json';
 import DiceRoll from '../assets/animation/diceroll.json';
+import {
+  getCurrentUser,
+  waitForAuthReady,
+} from '../firebase/auth';
 import { prepareNavigation, resetAndNavigate } from '../helpers/NavigationUtil';
 
 const { width, height } = Dimensions.get('window');
@@ -33,6 +37,8 @@ const SplashScreen = () => {
   const diceTranslate = useRef(new Animated.Value(-30)).current;
 
   useEffect(() => {
+    let isMounted = true;
+
     prepareNavigation();
 
     // Entrance animations
@@ -56,11 +62,29 @@ const SplashScreen = () => {
       }),
     ]).start();
 
-    const timer = setTimeout(() => {
-      resetAndNavigate('LoginScreen');
-    }, 3000);
+    const initializeApp = async () => {
+      try {
+        await waitForAuthReady();
+      } catch (error) {
+        console.error('Failed while waiting for Firebase auth state.', error);
+      }
 
-    return () => clearTimeout(timer);
+      await new Promise(resolve => {
+        setTimeout(resolve, 3000);
+      });
+
+      if (!isMounted) {
+        return;
+      }
+
+      resetAndNavigate(getCurrentUser() ? 'HomeScreen' : 'LoginScreen');
+    };
+
+    initializeApp();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const rays = [-80, -60, -40, -20, 0, 20, 40, 60, 80];

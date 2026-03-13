@@ -52,7 +52,7 @@ client_secret*.json
 #
 node_modules/
 .expo/
-.expo-export-test/
+.expo-export*/
 npm-debug.log
 yarn-error.log
 firebase-debug.log

@@ -24,7 +24,11 @@ import {useDispatch} from 'react-redux';
 import CoinIcon from '../assets/coin_icon.png';
 import BackgroundImage from '../assets/images/bg.jpeg';
 import ProfilePic from '../assets/profile_placeholder.png';
-import {ensureSignedIn, getCurrentUser} from '../firebase/auth';
+import {
+  ensureSignedIn,
+  getCurrentUser,
+  getCurrentUserProfile,
+} from '../firebase/auth';
 import {getFirebaseSetupErrorMessage} from '../firebase/errorMessages';
 import {
   joinContestQueue,
@@ -32,6 +36,8 @@ import {
   MATCHMAKING_WAIT_TIME_SECONDS,
   subscribeToContestBoards,
 } from '../firebase/matchmaking';
+import {getUserWallet} from '../firebase/users';
+import {formatCurrencyAmount} from '../helpers/currency';
 import {playSound} from '../helpers/SoundUtility';
 import {resetGame} from '../redux/reducers/gameSlice';
 
@@ -76,6 +82,7 @@ const LobbyScreen = () => {
   const [contestBoards, setContestBoards] = useState({});
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
   const [joiningContestId, setJoiningContestId] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -100,6 +107,13 @@ const LobbyScreen = () => {
         }
 
         setUser(signedInUser);
+        try {
+          const currentProfile = await getCurrentUserProfile();
+          setWalletBalance(getUserWallet(currentProfile).totalBalance);
+        } catch (error) {
+          console.warn('Failed to refresh wallet balance in lobby.', error);
+          setWalletBalance(0);
+        }
         unsubscribe = subscribeToContestBoards(nextContestBoards => {
           if (!isMounted) {
             return;
@@ -229,7 +243,9 @@ const LobbyScreen = () => {
                 style={styles.walletPill}
               >
                 <Image source={CoinIcon} style={styles.walletIcon} />
-                <Text style={styles.walletAmount}>₹0</Text>
+                <Text style={styles.walletAmount}>
+                  {`\u20B9${formatCurrencyAmount(walletBalance)}`}
+                </Text>
                 <View style={styles.walletAdd}>
                   <Ionicons name="add" size={14} color="#ffffff" />
                 </View>

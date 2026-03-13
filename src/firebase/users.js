@@ -1,5 +1,6 @@
 import {
   get,
+  onValue,
   ref,
   runTransaction,
   serverTimestamp,
@@ -8,6 +9,7 @@ import {
 } from 'firebase/database';
 import {updateProfile} from 'firebase/auth';
 
+import {normalizeCurrencyAmount} from '../helpers/currency';
 import {db} from './config';
 
 const DISPLAY_NAME_MAX_LENGTH = 40;
@@ -67,11 +69,33 @@ const syncAuthDisplayName = async (user, displayName) => {
   return user;
 };
 
+const normalizeWallet = wallet => ({
+  addedAmount: normalizeCurrencyAmount(wallet?.addedAmount),
+  totalBalance: normalizeCurrencyAmount(wallet?.totalBalance),
+  winnings: normalizeCurrencyAmount(wallet?.winnings),
+});
+
+const normalizeWalletTransactions = walletTransactions => {
+  if (
+    !walletTransactions ||
+    typeof walletTransactions !== 'object' ||
+    Array.isArray(walletTransactions)
+  ) {
+    return {};
+  }
+
+  return walletTransactions;
+};
+
 const normalizeExistingProfile = profile => ({
   ...profile,
   nameChangeCount:
     typeof profile?.nameChangeCount === 'number' ? profile.nameChangeCount : 0,
+  wallet: normalizeWallet(profile?.wallet),
+  walletTransactions: normalizeWalletTransactions(profile?.walletTransactions),
 });
+
+export const getUserWallet = profile => normalizeWallet(profile?.wallet);
 
 export const getUserProfile = async uid => {
   if (!uid) {
@@ -169,6 +193,114 @@ export const ensureUserProfile = async (user, fallbackDisplayName = 'Player') =>
 
   await syncAuthDisplayName(user, nextProfile.displayName);
   return nextProfile;
+};
+
+export const subscribeToUserProfile = (uid, callback) => {
+  if (!uid) {
+    callback(null);
+    return () => {};
+  }
+
+  const profileRef = ref(db, `users/${uid}`);
+
+  return onValue(profileRef, snapshot => {
+    callback(snapshot.exists() ? normalizeExistingProfile(snapshot.val()) : null);
+  });
+};
+
+export const creditUserWalletRoomPrize = async ({
+  roomCode = null,
+  roomId,
+  prizePool,
+  user,
+}) => {
+  if (!user?.uid) {
+    throw createProfileError(
+      'wallet/user-missing',
+      'No authenticated user is available for wallet updates.',
+    );
+  }
+
+  const normalizedRoomId = `${roomId ?? ''}`.trim();
+  const normalizedPrizePool = normalizeCurrencyAmount(prizePool);
+
+  if (!normalizedRoomId || normalizedPrizePool <= 0) {
+    return {
+      amount: normalizedPrizePool,
+      credited: false,
+      profile: await getUserProfile(user.uid),
+    };
+  }
+
+  await ensureUserProfile(user);
+
+  const profileRef = ref(db, `users/${user.uid}`);
+  const transactionKey = `room-win-${normalizedRoomId}`;
+  const fallbackDisplayName = getDefaultDisplayNameForUser(user, 'Player');
+  let transactionState = 'pending';
+
+  const result = await runTransaction(profileRef, currentProfile => {
+    const existingProfile = currentProfile
+      ? normalizeExistingProfile(currentProfile)
+      : buildProfilePayload({
+          user,
+          displayName: fallbackDisplayName,
+          baseDisplayName: fallbackDisplayName,
+          nameChangeCount: 0,
+        });
+    const wallet = normalizeWallet(existingProfile.wallet);
+    const walletTransactions = normalizeWalletTransactions(
+      existingProfile.walletTransactions,
+    );
+
+    if (walletTransactions[transactionKey]) {
+      transactionState = 'duplicate';
+      return currentProfile;
+    }
+
+    const nextTotalBalance = normalizeCurrencyAmount(
+      wallet.totalBalance + normalizedPrizePool,
+    );
+    const nextWinnings = normalizeCurrencyAmount(
+      wallet.winnings + normalizedPrizePool,
+    );
+
+    transactionState = 'credited';
+
+    return {
+      ...existingProfile,
+      wallet: {
+        ...wallet,
+        totalBalance: nextTotalBalance,
+        winnings: nextWinnings,
+      },
+      walletTransactions: {
+        ...walletTransactions,
+        [transactionKey]: {
+          amount: normalizedPrizePool,
+          balanceAfter: nextTotalBalance,
+          createdAt: serverTimestamp(),
+          roomCode: roomCode || normalizedRoomId,
+          roomId: normalizedRoomId,
+          type: 'room-win',
+        },
+      },
+      updatedAt: serverTimestamp(),
+    };
+  });
+
+  if (!result.snapshot.exists()) {
+    throw createProfileError(
+      'wallet/update-failed',
+      'Could not update the wallet for this room prize.',
+    );
+  }
+
+  return {
+    amount: normalizedPrizePool,
+    credited: transactionState === 'credited',
+    profile: normalizeExistingProfile(result.snapshot.val()),
+  };
 };
 
 export const updateUserDisplayNameOnce = async (user, nextDisplayName) => {

@@ -37,8 +37,10 @@ const ACTION_BUTTONS = {
   },
 };
 
-const WinActionButton = ({variant, onPress}) => {
+const WinActionButton = ({variant, label, icon, onPress}) => {
   const config = ACTION_BUTTONS[variant];
+  const resolvedIcon = icon ?? config.icon;
+  const resolvedLabel = label ?? config.label;
 
   return (
     <TouchableOpacity
@@ -69,7 +71,7 @@ const WinActionButton = ({variant, onPress}) => {
         }}
       >
         <Ionicons
-          name={config.icon}
+          name={resolvedIcon}
           size={20}
           color="#ffffff"
           style={{marginRight: 10}}
@@ -82,17 +84,25 @@ const WinActionButton = ({variant, onPress}) => {
             letterSpacing: 0.2,
           }}
         >
-          {config.label}
+          {resolvedLabel}
         </Text>
       </LinearGradient>
     </TouchableOpacity>
   );
 };
 
-const WinModal = ({winner}) => {
+const WinModal = ({
+  winner,
+  onExit,
+  exitLabel = 'Home',
+  exitIcon = null,
+  resultReason = null,
+}) => {
   const dispatch = useDispatch();
   const [visible, setVisible] = useState(!!winner);
   const isDraw = winner === 'draw';
+  const isTimeoutForfeit = resultReason === 'timeout-forfeit';
+  const isMatchTimeLimit = resultReason === 'match-time-limit';
   const winnerColor = isDraw
     ? '#f4bf34'
     : colorPlayer[(winner ?? 1) - 1] ?? '#f4bf34';
@@ -102,11 +112,29 @@ const WinModal = ({winner}) => {
     setVisible(!!winner);
   }, [winner]);
 
-  const handleHome = () => {
+  const handleExit = () => {
+    if (typeof onExit === 'function') {
+      onExit();
+      return;
+    }
+
     dispatch(resetGame());
     dispatch(announceWinners(null));
     resetAndNavigate('HomeScreen');
   };
+
+  const statusLabel = isTimeoutForfeit
+    ? 'GAME OVER'
+    : isDraw
+      ? 'TIME UP'
+      : 'CONGRATULATIONS';
+  const resultDescription = isTimeoutForfeit
+    ? 'A player missed 3 consecutive turns and was eliminated from the board.'
+    : isDraw
+      ? 'The timer ended with level scores. Start a fresh room for a rematch.'
+      : isMatchTimeLimit
+        ? 'The match timer ended. The higher score wins the room.'
+        : 'All tokens reached home first. The board is yours.';
 
   return (
     <Modal
@@ -230,7 +258,7 @@ const WinModal = ({winner}) => {
                   letterSpacing: 2.4,
                 }}
               >
-                {isDraw ? 'TIME UP' : 'CONGRATULATIONS'}
+                {statusLabel}
               </Text>
 
               <Text
@@ -254,9 +282,7 @@ const WinModal = ({winner}) => {
                   lineHeight: 21,
                 }}
               >
-                {isDraw
-                  ? 'The timer ended with level scores. Start a fresh room for a rematch.'
-                  : 'All tokens reached home first. The board is yours.'}
+                {resultDescription}
               </Text>
             </View>
 
@@ -352,7 +378,12 @@ const WinModal = ({winner}) => {
             </View>
 
             <View style={{marginTop: 22}}>
-              <WinActionButton variant="secondary" onPress={handleHome} />
+              <WinActionButton
+                variant="secondary"
+                icon={exitIcon}
+                label={exitLabel}
+                onPress={handleExit}
+              />
             </View>
           </View>
         </LinearGradient>

@@ -24,13 +24,20 @@ import DiceRoll from '../assets/animation/diceroll.json';
 import ProfilePic from '../assets/profile_placeholder.png';
 import CoinIcon from '../assets/coin_icon.png';
 import WalletIcon from '../assets/wallet.png';
-import {ensureSignedIn, getCurrentUser} from '../firebase/auth';
+import {
+  ensureSignedIn,
+  getCurrentUser,
+  getCurrentUserProfile,
+} from '../firebase/auth';
 import {getFirebaseSetupErrorMessage} from '../firebase/errorMessages';
+import {getResumableOnlineRoomSession} from '../firebase/onlineSession';
 import {
   createRoom,
   joinRoom,
   normalizeRoomId,
 } from '../firebase/rooms';
+import {getUserWallet} from '../firebase/users';
+import {formatCurrencyAmount} from '../helpers/currency';
 import { playSound, stopSound } from '../helpers/SoundUtility';
 import { resetGame } from '../redux/reducers/gameSlice';
 
@@ -65,16 +72,11 @@ const HomeScreen = ({ navigation }) => {
   const [roomActionLoading, setRoomActionLoading] = useState(false);
   const [joinRoomCode, setJoinRoomCode] = useState('');
   const [createdRoomId, setCreatedRoomId] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const isRestoringActiveRoomRef = useRef(false);
 
   const tickerX = useRef(new Animated.Value(width)).current;
   const tickerIndex = useRef(0);
-
-  useEffect(() => {
-    if (isFocused) {
-      setUser(getCurrentUser());
-      playSound('home');
-    }
-  }, [isFocused]);
 
   useEffect(() => {
     const runTicker = () => {
@@ -127,6 +129,56 @@ const HomeScreen = ({ navigation }) => {
     });
     playSound('game_start');
   }, [dispatch, navigation, resetPrivateRoomState]);
+
+  const restoreActiveOnlineRoom = useCallback(async () => {
+    if (roomActionLoading || roomSheetVisible || isRestoringActiveRoomRef.current) {
+      return;
+    }
+
+    try {
+      isRestoringActiveRoomRef.current = true;
+      const resumableSession = await getResumableOnlineRoomSession();
+
+      if (!resumableSession) {
+        return;
+      }
+
+      await navigateToOnlineRoom({
+        roomId: resumableSession.roomId,
+        playerNo: resumableSession.playerNo,
+      });
+    } catch (error) {
+      console.error('Failed to restore active online room.', error);
+    } finally {
+      isRestoringActiveRoomRef.current = false;
+    }
+  }, [navigateToOnlineRoom, roomActionLoading, roomSheetVisible]);
+
+  useEffect(() => {
+    if (isFocused) {
+      const syncCurrentUserState = async () => {
+        const currentUser = getCurrentUser();
+        setUser(currentUser);
+
+        if (!currentUser?.uid) {
+          setWalletBalance(0);
+          return;
+        }
+
+        try {
+          const currentProfile = await getCurrentUserProfile();
+          setWalletBalance(getUserWallet(currentProfile).totalBalance);
+        } catch (error) {
+          console.warn('Failed to refresh wallet balance on home screen.', error);
+          setWalletBalance(0);
+        }
+      };
+
+      syncCurrentUserState();
+      playSound('home');
+      restoreActiveOnlineRoom();
+    }
+  }, [isFocused, restoreActiveOnlineRoom]);
 
   const startOnlineMatch = useCallback(async () => {
     playSound('ui');
@@ -231,7 +283,9 @@ const HomeScreen = ({ navigation }) => {
               style={styles.walletRow}
               onPress={() => navigation.navigate('WalletScreen')}>
               <Image source={WalletIcon} style={styles.walletIcon} resizeMode="contain" />
-              <Text style={styles.walletAmount}>₹1</Text>
+              <Text style={styles.walletAmount}>
+                {`\u20B9${formatCurrencyAmount(walletBalance)}`}
+              </Text>
               <View style={styles.addBtn}>
                 <Ionicons name="add" size={14} color="#fff" />
               </View>

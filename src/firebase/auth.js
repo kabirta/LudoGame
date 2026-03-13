@@ -1,5 +1,6 @@
 import {
   GoogleAuthProvider,
+  onAuthStateChanged,
   signOut,
   signInAnonymously,
   signInWithCredential,
@@ -18,6 +19,7 @@ export {googleAuthConfig};
 
 let isGoogleSignInConfigured = false;
 const GOOGLE_SIGNIN_MODULE_NAME = 'RNGoogleSignin';
+let authReadyPromise = null;
 
 export const googleSignInStatusCodes = {
   IN_PROGRESS: 'IN_PROGRESS',
@@ -65,6 +67,23 @@ export const configureGoogleSignIn = () => {
     scopes: ['openid', 'profile', 'email'],
   });
   isGoogleSignInConfigured = true;
+};
+
+export const waitForAuthReady = () => {
+  if (typeof auth?.authStateReady === 'function') {
+    return auth.authStateReady();
+  }
+
+  if (!authReadyPromise) {
+    authReadyPromise = new Promise(resolve => {
+      const unsubscribe = onAuthStateChanged(auth, () => {
+        unsubscribe();
+        resolve(auth.currentUser);
+      });
+    });
+  }
+
+  return authReadyPromise;
 };
 
 export const ensureSignedIn = async displayName => {

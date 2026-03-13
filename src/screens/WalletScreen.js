@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useCallback, useState} from 'react';
 import {
   Alert,
   Dimensions,
@@ -9,14 +9,54 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {useFocusEffect} from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+
+import {getCurrentUserProfile} from '../firebase/auth';
+import {getUserWallet} from '../firebase/users';
+import {formatCurrencyAmount} from '../helpers/currency';
 
 const { width } = Dimensions.get('window');
 
 const WalletScreen = ({ navigation }) => {
-  const totalBalance = 1;
-  const winnings = 0;
+  const [wallet, setWallet] = useState(() => getUserWallet(null));
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const syncWallet = async () => {
+        try {
+          const currentProfile = await getCurrentUserProfile();
+
+          if (!isActive) {
+            return;
+          }
+
+          setWallet(getUserWallet(currentProfile));
+        } catch (error) {
+          console.warn('Failed to refresh wallet screen.', error);
+
+          if (!isActive) {
+            return;
+          }
+
+          setWallet(getUserWallet(null));
+        }
+      };
+
+      syncWallet();
+
+      return () => {
+        isActive = false;
+      };
+    }, []),
+  );
+
+  const totalBalance = wallet.totalBalance;
+  const winnings = wallet.winnings;
+  const addedAmount = wallet.addedAmount;
 
   return (
     <LinearGradient
@@ -53,7 +93,9 @@ const WalletScreen = ({ navigation }) => {
       <View style={styles.balanceCard}>
         {/* Total balance */}
         <View style={styles.totalSection}>
-          <Text style={styles.balanceAmount}>₹{totalBalance}</Text>
+          <Text style={styles.balanceAmount}>
+            {`\u20B9${formatCurrencyAmount(totalBalance)}`}
+          </Text>
           <Text style={styles.balanceLabel}>Total Balance</Text>
         </View>
 
@@ -68,7 +110,9 @@ const WalletScreen = ({ navigation }) => {
                 <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.5)" style={{ marginLeft: 4 }} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.rowValue}>₹0</Text>
+            <Text style={styles.rowValue}>
+              {`\u20B9${formatCurrencyAmount(addedAmount)}`}
+            </Text>
           </View>
 
           {/* Add button */}
@@ -100,7 +144,9 @@ const WalletScreen = ({ navigation }) => {
                 <Ionicons name="information-circle-outline" size={16} color="rgba(255,255,255,0.5)" style={{ marginLeft: 4 }} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.rowValue}>₹{winnings}</Text>
+            <Text style={styles.rowValue}>
+              {`\u20B9${formatCurrencyAmount(winnings)}`}
+            </Text>
           </View>
 
           {/* Withdraw button */}

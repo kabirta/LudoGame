@@ -16,6 +16,7 @@ const {
   normalizeRoundPlayers,
   pairPlayersForRound,
 } = require('./src/matchmakingEngine');
+const {creditFinishedRoomPrize} = require('./src/walletEngine');
 
 admin.initializeApp();
 
@@ -322,6 +323,37 @@ exports.processRoomAction = functions.database
       processedAt: now,
       result: outcome.result ?? null,
     });
+
+    return null;
+  });
+
+exports.creditRoomPrizeOnFinish = functions.database
+  .ref('/rooms/{roomId}')
+  .onWrite(async (change, context) => {
+    if (!change.after.exists()) {
+      return null;
+    }
+
+    const room = change.after.val();
+    const isFinishedRoom =
+      room?.status === 'finished' || room?.game?.winner != null;
+
+    if (!isFinishedRoom) {
+      return null;
+    }
+
+    try {
+      await creditFinishedRoomPrize({
+        room,
+        roomId: context.params.roomId,
+      });
+    } catch (error) {
+      console.error(
+        `Failed to settle room prize for ${context.params.roomId}.`,
+        error,
+      );
+      throw error;
+    }
 
     return null;
   });

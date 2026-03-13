@@ -11,9 +11,11 @@ import {
 } from 'firebase/database';
 
 import {initialState} from '../redux/reducers/initialState';
+import {normalizeCurrencyAmount} from '../helpers/currency';
 import {db} from './config';
+import {getUserProfile} from './users';
 
-const {applyRoomAction} = require('../../functions/src/gameEngine');
+const {applyRoomAction, expireTurn} = require('../../functions/src/gameEngine');
 
 const ROOM_CODE_LENGTH = 6;
 const MAX_ROOM_CODE_ATTEMPTS = 12;
@@ -504,4 +506,98 @@ export const finishRoomOnTimeout = async roomId => {
   }
 
   return result.snapshot.val();
+};
+
+export const expireRoomTurnIfNeeded = async roomId => {
+  const normalizedRoomId = normalizeRoomId(roomId);
+  if (!normalizedRoomId) {
+    return null;
+  }
+
+  const roomRef = ref(db, `rooms/${normalizedRoomId}`);
+  const now = Date.now();
+  let outcome = {ok: false, reason: 'transaction-aborted'};
+
+  const result = await runTransaction(roomRef, currentRoom => {
+    const nextOutcome = expireTurn({
+      room: currentRoom,
+      roomId: normalizedRoomId,
+      now,
+    });
+
+    outcome = nextOutcome;
+
+    if (!nextOutcome.ok) {
+      return;
+    }
+
+    return nextOutcome.room;
+  });
+
+  if (!result.committed || !outcome.ok) {
+    return null;
+  }
+
+  return {
+    room: result.snapshot.exists() ? result.snapshot.val() : null,
+    result: outcome.result ?? null,
+  };
+};
+
+export const claimRoomPrizeIfWinner = async ({
+  prizePool = null,
+  roomId,
+  roomSnapshot = null,
+  user,
+}) => {
+  const normalizedRoomId = normalizeRoomId(roomId);
+
+  if (!normalizedRoomId || !user?.uid) {
+    return {
+      amount: 0,
+      credited: false,
+      reason: 'user-missing',
+    };
+  }
+
+  const room = roomSnapshot ?? (await getRoom(normalizedRoomId));
+
+  if (!room || (room?.status !== 'finished' && room?.game?.winner == null)) {
+    return {
+      amount: 0,
+      credited: false,
+      reason: 'room-not-finished',
+    };
+  }
+
+  const winnerUid = room?.winner ?? getRoomWinnerUid(room, room?.game?.winner);
+
+  if (!winnerUid || winnerUid === 'draw' || winnerUid !== user.uid) {
+    return {
+      amount: 0,
+      credited: false,
+      reason: 'not-room-winner',
+    };
+  }
+
+  const payoutAmount = normalizeCurrencyAmount(room?.prizePool ?? prizePool);
+
+  if (payoutAmount <= 0) {
+    return {
+      amount: 0,
+      credited: false,
+      reason: 'no-prize',
+    };
+  }
+
+  const profile = await getUserProfile(user.uid);
+  const transactionKey = `room-win-${normalizedRoomId}`;
+  const alreadyCredited = Boolean(profile?.walletTransactions?.[transactionKey]);
+
+  return {
+    amount: payoutAmount,
+    credited: alreadyCredited,
+    profile,
+    reason: alreadyCredited ? 'already-credited' : 'server-settlement-pending',
+  };
 };

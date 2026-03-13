@@ -10,6 +10,7 @@ import {LinearGradient} from 'expo-linear-gradient';
 import {
   Alert,
   Animated,
+  AppState,
   BackHandler,
   Image,
   Text,
@@ -47,6 +48,7 @@ import {
   deviceHeight,
   deviceWidth,
 } from '../constants/Scaling';
+import {normalizeCurrencyAmount} from '../helpers/currency';
 import {useGameTime} from '../helpers/GameTime';
 import {getNextActivePlayer} from '../helpers/LudoMovementEngine';
 import {resetAndNavigate} from '../helpers/NavigationUtil';
@@ -62,6 +64,12 @@ import {
 } from '../firebase/auth';
 import {getFirebaseSetupErrorMessage} from '../firebase/errorMessages';
 import {
+  clearOnlineRoomSession,
+  persistOnlineRoomSession,
+} from '../firebase/onlineSession';
+import {
+  claimRoomPrizeIfWinner,
+  expireRoomTurnIfNeeded,
   finishRoomOnTimeout,
   normalizeRoomId,
   ONLINE_MATCH_TIME_LIMIT_SECONDS,
@@ -89,6 +97,7 @@ import {
 
 const TURN_ROLL_TIMEOUT_SECONDS = 15;
 const MAX_MISSED_ROLLS = 3;
+const WINNER_AUTO_RETURN_DELAY_MS = 4500;
 const MISSED_TURN_STEPS = [
   {key: 'first', threshold: 1, label: '1st\nMISS'},
   {key: 'second', threshold: 2, label: '2nd\nMISS'},
@@ -96,11 +105,19 @@ const MISSED_TURN_STEPS = [
 ];
 
 const getTurnMissBannerText = missedCount => {
+  if (missedCount >= MAX_MISSED_ROLLS) {
+    return 'GAME OVER';
+  }
+
+  if (missedCount === 2) {
+    return '2nd TURN MISS';
+  }
+
   if (missedCount === 1) {
     return '1st TURN MISS';
   }
 
-  return '';
+  return 'TURN MISSED';
 };
 
 const getOnlineRoomTimeLeft = room => {
@@ -243,7 +260,11 @@ const LudoBoardScreen = ({navigation, route}) => {
   const {seconds, formatTime} = useGameTime(5 * 60);
   const timerCompletedRef = useRef(false);
   const onlineMatchExpiryHandledRef = useRef(false);
+  const onlineTurnExpiryHandledRef = useRef(null);
   const allowExitNavigationRef = useRef(false);
+  const lastTurnTimeoutActionRef = useRef(null);
+  const roomPrizeClaimStateRef = useRef(new Map());
+  const appStateRef = useRef(AppState.currentState);
   const gameMode = route?.params?.gameMode ?? 'offline';
   const roomId = normalizeRoomId(route?.params?.roomId);
   const playerNo = route?.params?.playerNo ?? null;
@@ -259,6 +280,7 @@ const LudoBoardScreen = ({navigation, route}) => {
   const [roomLoaded, setRoomLoaded] = useState(false);
   const [isQueuingRoomAction, setIsQueuingRoomAction] = useState(false);
   const [onlineTimeLeft, setOnlineTimeLeft] = useState(ONLINE_MATCH_TIME_LIMIT_SECONDS);
+  const [winnerResultReason, setWinnerResultReason] = useState(null);
   const boardSize = Math.min(deviceWidth * 0.965, deviceHeight * 0.59);
   const firstMoverAvatarSize = Math.min(deviceWidth * 0.15, 70);
   const footerNameWidth = Math.min(deviceWidth * 0.42, 80);
@@ -309,12 +331,25 @@ const LudoBoardScreen = ({navigation, route}) => {
     setMenuVisible(false);
   }, []);
 
-  const handleExitGame = useCallback(() => {
+  const leaveBoard = useCallback(targetRoute => {
     allowExitNavigationRef.current = true;
     setMenuVisible(false);
+    setMissedTurnInfoPlayer(null);
+    setTurnMissBanner(null);
+    clearOnlineRoomSession().catch(error => {
+      console.error('Failed to clear active online room session.', error);
+    });
     dispatch(resetGame());
-    resetAndNavigate('HomeScreen');
+    resetAndNavigate(targetRoute);
   }, [dispatch]);
+
+  const handleExitGame = useCallback(() => {
+    leaveBoard('HomeScreen');
+  }, [leaveBoard]);
+
+  const handleResultExit = useCallback(() => {
+    leaveBoard(isOnlineMode ? 'LobbyScreen' : 'HomeScreen');
+  }, [isOnlineMode, leaveBoard]);
 
   const handleCloseMissedTurnInfo = useCallback(() => {
     setMissedTurnInfoPlayer(null);
@@ -416,24 +451,235 @@ const LudoBoardScreen = ({navigation, route}) => {
       return undefined;
     }
 
-    setPlayerConnected({
+    persistOnlineRoomSession({
       roomId,
       playerNo,
-      connected: true,
+      prizePool: route?.params?.prizePool ?? null,
     }).catch(error => {
-      console.error('Failed to mark player connected.', error);
+      console.error('Failed to persist active online room session.', error);
     });
+  }, [isOnlineMode, playerNo, roomId, route?.params?.prizePool]);
 
-    return () => {
+  useEffect(() => {
+    if (!isOnlineMode || !roomId || !playerNo) {
+      return undefined;
+    }
+
+    const syncConnectedState = connected => {
       setPlayerConnected({
         roomId,
         playerNo,
-        connected: false,
+        connected,
       }).catch(error => {
-        console.error('Failed to mark player disconnected.', error);
+        console.error('Failed to update player connection state.', error);
       });
     };
+
+    appStateRef.current = AppState.currentState;
+    syncConnectedState(AppState.currentState === 'active');
+
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      appStateRef.current = nextAppState;
+      syncConnectedState(nextAppState === 'active');
+    });
+
+    return () => {
+      subscription.remove?.();
+      syncConnectedState(false);
+    };
   }, [isOnlineMode, playerNo, roomId]);
+
+  useEffect(() => {
+    if (!isOnlineMode || !roomId) {
+      onlineTurnExpiryHandledRef.current = null;
+      return undefined;
+    }
+
+    if (
+      isWaitingForOpponent ||
+      winner != null ||
+      room?.status !== 'playing' ||
+      room?.game?.winner != null
+    ) {
+      onlineTurnExpiryHandledRef.current = null;
+      return undefined;
+    }
+
+    const deadlineAt =
+      typeof room?.game?.turnDeadlineAt === 'number'
+        ? room.game.turnDeadlineAt
+        : null;
+
+    if (!deadlineAt) {
+      onlineTurnExpiryHandledRef.current = null;
+      return undefined;
+    }
+
+    const deadlineKey = `${roomId}:${room?.game?.turnToken ?? 0}:${deadlineAt}`;
+    const remainingMs = Math.max(deadlineAt - Date.now(), 0);
+
+    const timeout = setTimeout(() => {
+      if (onlineTurnExpiryHandledRef.current === deadlineKey) {
+        return;
+      }
+
+      onlineTurnExpiryHandledRef.current = deadlineKey;
+      expireRoomTurnIfNeeded(roomId).catch(error => {
+        onlineTurnExpiryHandledRef.current = null;
+        console.error('Failed to expire the online turn.', error);
+      });
+    }, remainingMs + 80);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [
+    isOnlineMode,
+    isWaitingForOpponent,
+    room?.game?.turnDeadlineAt,
+    room?.game?.turnToken,
+    room?.game?.winner,
+    room?.status,
+    roomId,
+    winner,
+  ]);
+
+  useEffect(() => {
+    if (!isOnlineMode || !roomId || !roomLoaded || !room) {
+      return undefined;
+    }
+
+    if (room?.status !== 'finished' && room?.game?.winner == null) {
+      return undefined;
+    }
+
+    const currentUser = getCurrentUser();
+    if (!currentUser?.uid) {
+      return undefined;
+    }
+
+    if (roomPrizeClaimStateRef.current.has(roomId)) {
+      return undefined;
+    }
+
+    roomPrizeClaimStateRef.current.set(roomId, 'pending');
+    claimRoomPrizeIfWinner({
+      prizePool: prizePoolAmount,
+      roomId,
+      roomSnapshot: room,
+      user: currentUser,
+    })
+      .then(() => {
+        roomPrizeClaimStateRef.current.set(roomId, 'completed');
+        clearOnlineRoomSession().catch(error => {
+          console.error('Failed to clear active online room session.', error);
+        });
+      })
+      .catch(error => {
+        roomPrizeClaimStateRef.current.delete(roomId);
+        console.error('Failed to credit online room prize.', error);
+      });
+
+    return undefined;
+  }, [isOnlineMode, prizePoolAmount, room, roomId, roomLoaded]);
+
+  useEffect(() => {
+    if (!isOnlineMode) {
+      return undefined;
+    }
+
+    if (roomLoaded && !room) {
+      clearOnlineRoomSession().catch(error => {
+        console.error('Failed to clear active online room session.', error);
+      });
+      return undefined;
+    }
+
+    const isFinishedRoom =
+      room?.status === 'finished' || room?.game?.winner != null;
+
+    if (!isFinishedRoom) {
+      return undefined;
+    }
+
+    const currentUser = getCurrentUser();
+    const shouldWaitForPrizeClaim =
+      currentUser?.uid &&
+      room?.winner === currentUser.uid &&
+      normalizeCurrencyAmount(room?.prizePool ?? prizePoolAmount) > 0 &&
+      roomPrizeClaimStateRef.current.get(roomId) !== 'completed';
+
+    if (shouldWaitForPrizeClaim) {
+      return undefined;
+    }
+
+    clearOnlineRoomSession().catch(error => {
+      console.error('Failed to clear active online room session.', error);
+    });
+  }, [isOnlineMode, prizePoolAmount, room, roomId, roomLoaded, winner]);
+
+  useEffect(() => {
+    if (!isOnlineMode || !roomId) {
+      lastTurnTimeoutActionRef.current = null;
+      roomPrizeClaimStateRef.current.clear();
+      return undefined;
+    }
+
+    return undefined;
+  }, [isOnlineMode, roomId]);
+
+  useEffect(() => {
+    if (winner == null) {
+      setWinnerResultReason(null);
+    }
+  }, [winner]);
+
+  useEffect(() => {
+    if (!isOnlineMode || !roomId) {
+      lastTurnTimeoutActionRef.current = null;
+      return undefined;
+    }
+
+    const lastActionType = room?.game?.lastAction?.type;
+    const lastActionId = room?.game?.lastAction?.actionId;
+    const lastActionProcessedAt = room?.game?.lastAction?.processedAt;
+    const lastActionPlayerNo = room?.game?.lastAction?.playerNo ?? null;
+    const lastActionMissedCount = room?.game?.lastAction?.missedRollCount ?? 0;
+
+    if (lastActionType === 'TIMEOUT_FORFEIT') {
+      setWinnerResultReason('timeout-forfeit');
+    } else if (lastActionType === 'MATCH_TIMEOUT') {
+      setWinnerResultReason('match-time-limit');
+    }
+
+    if (
+      lastActionType !== 'TIMEOUT_SKIP' &&
+      lastActionType !== 'TIMEOUT_FORFEIT'
+    ) {
+      return undefined;
+    }
+
+    const timeoutActionKey = `${lastActionType}:${lastActionId ?? ''}:${lastActionProcessedAt ?? ''}`;
+    if (lastTurnTimeoutActionRef.current === timeoutActionKey) {
+      return undefined;
+    }
+
+    lastTurnTimeoutActionRef.current = timeoutActionKey;
+    setTurnMissBanner({
+      message: getTurnMissBannerText(lastActionMissedCount),
+      playerNo: lastActionPlayerNo,
+    });
+
+    return undefined;
+  }, [
+    isOnlineMode,
+    room?.game?.lastAction?.actionId,
+    room?.game?.lastAction?.missedRollCount,
+    room?.game?.lastAction?.playerNo,
+    room?.game?.lastAction?.processedAt,
+    room?.game?.lastAction?.type,
+    roomId,
+  ]);
 
   useEffect(() => {
     if (isFocused) {
@@ -499,8 +745,23 @@ const LudoBoardScreen = ({navigation, route}) => {
     const player2Score = scores?.player2 ?? 0;
     const finalWinner =
       player1Score === player2Score ? 'draw' : player2Score > player1Score ? 2 : 1;
+    setWinnerResultReason('match-time-limit');
     dispatch(announceWinners(finalWinner));
   }, [dispatch, isOnlineMode, scores, seconds, winner]);
+
+  useEffect(() => {
+    if (winner == null) {
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => {
+      handleResultExit();
+    }, WINNER_AUTO_RETURN_DELAY_MS);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [handleResultExit, winner]);
 
   useEffect(() => {
     if (!isOnlineMode) {
@@ -672,6 +933,7 @@ const LudoBoardScreen = ({navigation, route}) => {
       dispatch(recordMissedRoll({playerNo: currentPlayerChance}));
 
       if (nextMissCount >= MAX_MISSED_ROLLS) {
+        setWinnerResultReason('timeout-forfeit');
         dispatch(announceWinners(getNextActivePlayer(currentPlayerChance)));
         return;
       }
@@ -1411,7 +1673,15 @@ const LudoBoardScreen = ({navigation, route}) => {
               visible={menuVisible}
             />
           ) : null}
-          {winner != null ? <WinModal winner={winner} /> : null}
+          {winner != null ? (
+            <WinModal
+              exitIcon={isOnlineMode ? 'grid' : 'home'}
+              exitLabel={isOnlineMode ? 'Lobby' : 'Home'}
+              onExit={handleResultExit}
+              resultReason={winnerResultReason}
+              winner={winner}
+            />
+          ) : null}
         </View>
       </View>
     </Wrapper>

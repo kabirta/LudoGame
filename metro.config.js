@@ -12,6 +12,10 @@ config.transformer = {
 config.resolver = {
   ...resolver,
   assetExts: resolver.assetExts.filter(ext => ext !== 'svg'),
+  blockList: [
+    ...(Array.isArray(resolver.blockList) ? resolver.blockList : [resolver.blockList]),
+    /[\/\\]\.expo-export[^\/\\]*(?:[\/\\].*)?$/,
+  ],
   sourceExts: [...resolver.sourceExts, 'svg'],
 };
 
