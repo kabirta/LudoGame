@@ -52,8 +52,12 @@ client_secret*.json
 #
 node_modules/
 .expo/
+.expo-export-test/
 npm-debug.log
 yarn-error.log
+firebase-debug.log
+firebase-debug.*.log
+android/.gradle-user/
 
 # fastlane
 #

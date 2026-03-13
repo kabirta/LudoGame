@@ -3,6 +3,45 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply plugin: "com.google.gms.google-services"
 
+def rootGoogleServicesFile = new File(
+    rootProject.projectDir.parentFile,
+    "google-services.json",
+)
+def appGoogleServicesFile = new File(projectDir, "google-services.json")
+
+def syncGoogleServicesJson = tasks.register("syncGoogleServicesJson") {
+    inputs.file(rootGoogleServicesFile).optional()
+    outputs.file(appGoogleServicesFile)
+
+    doLast {
+        if (!rootGoogleServicesFile.exists()) {
+            if (!appGoogleServicesFile.exists()) {
+                throw new GradleException(
+                    "Missing google-services.json. Expected either ${appGoogleServicesFile} or ${rootGoogleServicesFile}.",
+                )
+            }
+
+            return
+        }
+
+        if (
+            appGoogleServicesFile.exists() &&
+            appGoogleServicesFile.text == rootGoogleServicesFile.text
+        ) {
+            return
+        }
+
+        appGoogleServicesFile.parentFile.mkdirs()
+        appGoogleServicesFile.text = rootGoogleServicesFile.text
+    }
+}
+
+tasks.matching { task ->
+    task.name.startsWith("process") && task.name.endsWith("GoogleServices")
+}.configureEach {
+    dependsOn(syncGoogleServicesJson)
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.

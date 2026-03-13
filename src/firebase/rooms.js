@@ -3,23 +3,22 @@ import {
   get,
   onValue,
   orderByChild,
-  push,
   query,
   ref,
   runTransaction,
   serverTimestamp,
-  set,
   update,
 } from 'firebase/database';
 
 import {initialState} from '../redux/reducers/initialState';
 import {db} from './config';
 
+const {applyRoomAction} = require('../../functions/src/gameEngine');
+
 const ROOM_CODE_LENGTH = 6;
 const MAX_ROOM_CODE_ATTEMPTS = 12;
 const ONLINE_TURN_TIMEOUT_MS = 15000;
 export const ONLINE_MATCH_TIME_LIMIT_SECONDS = 8 * 60;
-const ROOM_ACTION_WAIT_MS = 12000;
 
 export const normalizeRoomId = roomId => `${roomId ?? ''}`.trim();
 
@@ -237,52 +236,47 @@ const createRoomActionError = reason => {
   }
 };
 
-const waitForRoomActionResult = actionRef =>
-  new Promise((resolve, reject) => {
-    let unsubscribe = null;
+const applyRoomActionDirectly = async ({
+  roomId,
+  uid,
+  playerNo,
+  type,
+  payload = {},
+}) => {
+  const normalizedRoomId = normalizeRoomId(roomId);
+  const roomRef = ref(db, `rooms/${normalizedRoomId}`);
+  const now = Date.now();
+  let outcome = {ok: false, reason: 'transaction-aborted'};
 
-    const timer = setTimeout(() => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-
-      reject(
-        createRoomError(
-          'room/action-timeout',
-          'Server did not process the online room action in time. Deploy Firebase Functions and database rules, then try again.',
-        ),
-      );
-    }, ROOM_ACTION_WAIT_MS);
-
-    unsubscribe = onValue(
-      actionRef,
-      snapshot => {
-        if (!snapshot.exists()) {
-          return;
-        }
-
-        const action = snapshot.val();
-
-        if (action?.status === 'processed') {
-          clearTimeout(timer);
-          unsubscribe?.();
-          resolve(action.result ?? null);
-          return;
-        }
-
-        if (action?.status === 'rejected') {
-          clearTimeout(timer);
-          unsubscribe?.();
-          reject(createRoomActionError(action.error));
-        }
+  const result = await runTransaction(roomRef, currentRoom => {
+    const nextOutcome = applyRoomAction({
+      room: currentRoom,
+      action: {
+        uid,
+        playerNo,
+        type,
+        payload,
       },
-      error => {
-        clearTimeout(timer);
-        unsubscribe?.();
-        reject(error);
-      },
-    );
+      roomId: normalizedRoomId,
+      actionId: `client-${type}-${uid}-${now}`,
+      now,
+    });
+
+    outcome = nextOutcome;
+
+    if (!nextOutcome.ok) {
+      return;
+    }
+
+    return nextOutcome.room;
   });
+
+  if (!result.committed || !outcome.ok) {
+    throw createRoomActionError(outcome.reason ?? 'transaction-aborted');
+  }
+
+  return outcome.result ?? null;
+};
 
 const buildWaitingRoomState = ({roomId, uid, name}) => ({
   code: roomId,
@@ -472,18 +466,13 @@ export const queueRoomAction = async ({
     playerNo,
   });
 
-  const actionRef = push(ref(db, `roomActions/${normalizedRoomId}`));
-
-  await set(actionRef, {
+  return applyRoomActionDirectly({
+    roomId: normalizedRoomId,
     uid,
     playerNo,
     type,
     payload,
-    status: 'pending',
-    createdAt: serverTimestamp(),
   });
-
-  return waitForRoomActionResult(actionRef);
 };
 
 export const finishRoomOnTimeout = async roomId => {
