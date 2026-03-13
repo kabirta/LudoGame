@@ -45,6 +45,56 @@
         }
       }
     },
+    "matchmaking": {
+      ".read": false,
+      ".write": false,
+      "contests": {
+        ".read": "auth != null",
+        "$contestId": {
+          ".read": "auth != null",
+          ".write": false
+        }
+      },
+      "joinRequests": {
+        "$contestId": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "!newData.exists() || (((($contestId === 'starter-50') || ($contestId === 'classic-100') || ($contestId === 'pro-250') || ($contestId === 'elite-500')) && newData.hasChildren(['contestId','userId','name','requestedAt']) && newData.child('contestId').isString() && newData.child('contestId').val() === $contestId && newData.child('userId').isString() && newData.child('userId').val() === $uid && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.child('requestedAt').isNumber()))"
+          }
+        }
+      },
+      "processRequests": {
+        "$contestId": {
+          "$roundId": {
+            "$uid": {
+              ".read": "auth != null && auth.uid === $uid",
+              ".write": "auth != null && auth.uid === $uid",
+              ".validate": "!newData.exists() || (((($contestId === 'starter-50') || ($contestId === 'classic-100') || ($contestId === 'pro-250') || ($contestId === 'elite-500')) && newData.hasChildren(['contestId','roundId','userId','createdAt']) && newData.child('contestId').isString() && newData.child('contestId').val() === $contestId && newData.child('roundId').isString() && newData.child('roundId').val() === $roundId && newData.child('userId').isString() && newData.child('userId').val() === $uid && newData.child('createdAt').isNumber()))"
+            }
+          }
+        }
+      },
+      "queues": {
+        "$contestId": {
+          ".read": "auth != null",
+          "$roundId": {
+            ".read": "auth != null",
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid && !newData.exists()",
+              ".validate": "!newData.exists() || (((($contestId === 'starter-50') || ($contestId === 'classic-100') || ($contestId === 'pro-250') || ($contestId === 'elite-500')) && newData.hasChildren(['userId','contestId','roundId','name','joinedAt','roundEndsAt']) && newData.child('userId').isString() && newData.child('userId').val() === $uid && newData.child('contestId').isString() && newData.child('contestId').val() === $contestId && newData.child('roundId').isString() && newData.child('roundId').val() === $roundId && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.child('joinedAt').isNumber() && newData.child('roundEndsAt').isNumber() && newData.child('roundEndsAt').val() > newData.child('joinedAt').val()))"
+            }
+          }
+        }
+      },
+      "playerAssignments": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && !newData.exists()",
+          ".validate": "true"
+        }
+      }
+    },
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

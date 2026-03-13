@@ -17,15 +17,19 @@ export const getFirebaseSetupErrorMessage = error => {
   }
 
   if (code === 'database/permission-denied' || code === 'PERMISSION_DENIED') {
-    return `Realtime Database rules are blocking this operation. Allow authenticated users to read and write the /rooms, /roomActions, and /users paths they need.${code ? ` (${code})` : ''}`;
+    return `Realtime Database rules are blocking this operation. Allow authenticated users to read and write the /rooms, /roomActions, /matchmaking, and /users paths they need.${code ? ` (${code})` : ''}`;
   }
 
   if (code === 'room/unavailable') {
-    return 'Room code is invalid or that room is no longer waiting for an opponent.';
+    return 'Room code is invalid or that room is no longer available.';
   }
 
   if (code === 'room/not-ready') {
     return 'Wait for the opponent to fully join and for the board to unlock before rolling or moving a token.';
+  }
+
+  if (code === 'room/inactive') {
+    return 'This room is no longer active. Leave the board and create a fresh match.';
   }
 
   if (code === 'room/full') {

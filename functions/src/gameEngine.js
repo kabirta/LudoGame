@@ -5,6 +5,7 @@ const HOME_POSITION_INDEX = 56;
 const HOME_BONUS = 56;
 const HOME_LANE_LENGTH = 5;
 const TURN_TIMEOUT_MS = 15000;
+const MATCH_TIME_LIMIT_SECONDS = 8 * 60;
 const MAX_MISSED_ROLLS = 3;
 
 const SafeSpots = [
@@ -32,6 +33,21 @@ const PLAYER_CONFIGS = {
 const clone = value => JSON.parse(JSON.stringify(value));
 
 const getPlayerKey = playerNo => `player${playerNo}`;
+
+const getRoomCode = (room, roomId) =>
+  typeof room?.code === 'string' && room.code.trim()
+    ? room.code.trim()
+    : `${roomId ?? ''}`.trim();
+
+const getRoomTimeLimitSeconds = room =>
+  typeof room?.timeLimit === 'number' && Number.isFinite(room.timeLimit) && room.timeLimit > 0
+    ? room.timeLimit
+    : MATCH_TIME_LIMIT_SECONDS;
+
+const getRoomStartTime = room =>
+  typeof room?.startTime === 'number' && Number.isFinite(room.startTime)
+    ? room.startTime
+    : null;
 
 const getNextActivePlayer = currentPlayer => {
   const index = ACTIVE_PLAYERS.indexOf(currentPlayer);
@@ -343,6 +359,17 @@ const applyChanceTransition = (game, nextPlayer, now) => {
 const resolveActionPlayer = (room, playerNo) =>
   room?.players?.[getPlayerKey(playerNo)]?.uid ?? null;
 
+const resolveRoomWinner = (room, winner) => {
+  if (winner === 'draw') {
+    return 'draw';
+  }
+
+  return resolveActionPlayer(room, winner);
+};
+
+const resolveCurrentTurnUid = (room, game) =>
+  room?.players?.[getPlayerKey(game?.chancePlayer)]?.uid ?? null;
+
 const createLastAction = ({actionId, uid, playerNo, type, status, now, extra = {}}) => ({
   actionId,
   uid,
@@ -353,12 +380,95 @@ const createLastAction = ({actionId, uid, playerNo, type, status, now, extra = {
   ...extra,
 });
 
-const updateRoomWithGame = (room, game, now, extra = {}) => ({
+const updateRoomWithGame = (room, roomId, game, now, extra = {}) => ({
   ...room,
   ...extra,
+  code: getRoomCode(room, roomId),
+  currentTurn: resolveCurrentTurnUid(room, game),
+  timeLimit: getRoomTimeLimitSeconds(room),
   game,
   updatedAt: now,
 });
+
+const hasTimedMatchExpired = (room, now) => {
+  const startTime = getRoomStartTime(room);
+  if (startTime == null) {
+    return false;
+  }
+
+  return startTime + getRoomTimeLimitSeconds(room) * 1000 <= now;
+};
+
+const resolveScoreWinner = game => {
+  const player1Score = game?.scores?.player1 ?? getPlayerScore(game?.player1);
+  const player2Score = game?.scores?.player2 ?? getPlayerScore(game?.player2);
+
+  if (player1Score === player2Score) {
+    return 'draw';
+  }
+
+  return player1Score > player2Score ? 1 : 2;
+};
+
+const expireTimedMatch = ({room, roomId, now}) => {
+  if (!room || room.status !== 'playing' || !hasTimedMatchExpired(room, now)) {
+    return null;
+  }
+
+  const game = normalizeGameState(room.game, now);
+  if (game.winner != null) {
+    return {
+      ok: true,
+      room: updateRoomWithGame(room, roomId, game, now, {
+        status: 'finished',
+        winner: resolveRoomWinner(room, game.winner),
+        endTime: now,
+      }),
+      result: {
+        winner: game.winner,
+        outcome: 'game-already-finished',
+      },
+    };
+  }
+
+  const winner = resolveScoreWinner(game);
+  game.winner = winner;
+  game.isDiceRolled = false;
+  game.touchDiceBlock = false;
+  game.cellSelectionPlayer = -1;
+  game.pileSelectionPlayer = -1;
+  game.turnDeadlineAt = now;
+  game.lastAction = createLastAction({
+    actionId: `time-limit-${roomId}-${now}`,
+    uid: resolveCurrentTurnUid(room, game),
+    playerNo: game.chancePlayer,
+    type: 'MATCH_TIMEOUT',
+    status: 'processed',
+    now,
+    extra: {
+      roomId,
+      outcome: 'score-time-limit',
+      winner,
+      scores: {
+        player1: game.scores.player1,
+        player2: game.scores.player2,
+      },
+    },
+  });
+
+  return {
+    ok: true,
+    room: updateRoomWithGame(room, roomId, game, now, {
+      status: 'finished',
+      winner: resolveRoomWinner(room, winner),
+      endTime: now,
+    }),
+    result: {
+      winner,
+      outcome: 'score-time-limit',
+    },
+  };
+};
 
 const getRoomActionAvailabilityReason = room => {
   if (!room) {
@@ -367,6 +477,10 @@ const getRoomActionAvailabilityReason = room => {
 
   if (room.status === 'waiting') {
     return 'room-waiting';
+  }
+
+  if (room.status === 'finished') {
+    return 'game-finished';
   }
 
   if (room.status !== 'playing') {
@@ -394,6 +508,11 @@ const applyRollAction = ({room, action, roomId, actionId, now, randomFn}) => {
   const game = normalizeGameState(room.game, now);
   if (game.winner != null) {
     return {ok: false, reason: 'game-finished'};
+  }
+
+  const timedMatchOutcome = expireTimedMatch({room, roomId, now});
+  if (timedMatchOutcome) {
+    return timedMatchOutcome;
   }
 
   if (game.chancePlayer !== action.playerNo) {
@@ -429,7 +548,7 @@ const applyRollAction = ({room, action, roomId, actionId, now, randomFn}) => {
 
     return {
       ok: true,
-      room: updateRoomWithGame(room, nextGame, now),
+      room: updateRoomWithGame(room, roomId, nextGame, now),
       result: {
         diceNo,
         outcome: 'third-six-turn-forfeited',
@@ -460,7 +579,7 @@ const applyRollAction = ({room, action, roomId, actionId, now, randomFn}) => {
 
     return {
       ok: true,
-      room: updateRoomWithGame(room, nextGame, now),
+      room: updateRoomWithGame(room, roomId, nextGame, now),
       result: {
         diceNo,
         outcome: 'no-moves',
@@ -488,7 +607,7 @@ const applyRollAction = ({room, action, roomId, actionId, now, randomFn}) => {
 
   return {
     ok: true,
-    room: updateRoomWithGame(room, game, now),
+    room: updateRoomWithGame(room, roomId, game, now),
     result: {
       diceNo,
       movablePieceIds: movablePieces.map(piece => piece.id),
@@ -510,6 +629,11 @@ const applyMoveAction = ({room, action, roomId, actionId, now}) => {
   const game = normalizeGameState(room.game, now);
   if (game.winner != null) {
     return {ok: false, reason: 'game-finished'};
+  }
+
+  const timedMatchOutcome = expireTimedMatch({room, roomId, now});
+  if (timedMatchOutcome) {
+    return timedMatchOutcome;
   }
 
   if (game.chancePlayer !== action.playerNo) {
@@ -590,7 +714,11 @@ const applyMoveAction = ({room, action, roomId, actionId, now}) => {
 
     return {
       ok: true,
-      room: updateRoomWithGame(room, game, now, {status: 'finished'}),
+      room: updateRoomWithGame(room, roomId, game, now, {
+        status: 'finished',
+        winner: resolveRoomWinner(room, game.winner),
+        endTime: now,
+      }),
       result: {
         pieceId,
         outcome: 'winner',
@@ -624,7 +752,7 @@ const applyMoveAction = ({room, action, roomId, actionId, now}) => {
 
   return {
     ok: true,
-    room: updateRoomWithGame(room, nextGame, now),
+    room: updateRoomWithGame(room, roomId, nextGame, now),
     result: {
       pieceId,
       capturedIds: capturedPawns.map(pawn => pawn.id),
@@ -651,6 +779,11 @@ const applyRoomAction = ({room, action, roomId, actionId, now, randomFn = Math.r
 };
 
 const expireTurn = ({room, roomId, now}) => {
+  const timedMatchOutcome = expireTimedMatch({room, roomId, now});
+  if (timedMatchOutcome) {
+    return timedMatchOutcome;
+  }
+
   if (!room || room.status !== 'playing') {
     return {ok: false, reason: 'room-not-playing'};
   }
@@ -694,7 +827,11 @@ const expireTurn = ({room, roomId, now}) => {
 
     return {
       ok: true,
-      room: updateRoomWithGame(room, game, now, {status: 'finished'}),
+      room: updateRoomWithGame(room, roomId, game, now, {
+        status: 'finished',
+        winner: resolveRoomWinner(room, winner),
+        endTime: now,
+      }),
       result: {
         winner,
         missedRollCount: nextMissCount,
@@ -719,7 +856,7 @@ const expireTurn = ({room, roomId, now}) => {
 
   return {
     ok: true,
-    room: updateRoomWithGame(room, nextGame, now),
+    room: updateRoomWithGame(room, roomId, nextGame, now),
     result: {
       missedRollCount: nextMissCount,
       nextPlayer: nextGame.chancePlayer,

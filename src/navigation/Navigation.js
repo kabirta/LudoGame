@@ -7,6 +7,7 @@ import {navigationRef} from '../helpers/NavigationUtil';
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
 import LoginScreen from '../screens/LoginScreen';
+import LobbyScreen from '../screens/LobbyScreen';
 import LudoBoardScreen from '../screens/LudoBoardScreen';
 import OtpScreen from '../screens/OtpScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -30,6 +31,7 @@ const Navigation = () => {
         <Stack.Screen name="LoginScreen" component={LoginScreen} />
         <Stack.Screen name="OtpScreen" component={OtpScreen} />
         <Stack.Screen name="HomeScreen" component={HomeScreen} />
+        <Stack.Screen name="LobbyScreen" component={LobbyScreen} />
         <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
         <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
         <Stack.Screen name="WalletScreen" component={WalletScreen} />

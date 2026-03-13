@@ -1,195 +1,733 @@
-import React from 'react';
-
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
+  ImageBackground,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+import {LinearGradient} from 'expo-linear-gradient';
+import {Ionicons, MaterialCommunityIcons} from '@expo/vector-icons';
 import {useNavigation} from '@react-navigation/native';
+import {useDispatch} from 'react-redux';
+
+import CoinIcon from '../assets/coin_icon.png';
+import BackgroundImage from '../assets/images/bg.jpeg';
+import ProfilePic from '../assets/profile_placeholder.png';
+import {ensureSignedIn, getCurrentUser} from '../firebase/auth';
+import {getFirebaseSetupErrorMessage} from '../firebase/errorMessages';
+import {
+  joinContestQueue,
+  MATCHMAKING_CONTESTS,
+  MATCHMAKING_WAIT_TIME_SECONDS,
+  subscribeToContestBoards,
+} from '../firebase/matchmaking';
+import {playSound} from '../helpers/SoundUtility';
+import {resetGame} from '../redux/reducers/gameSlice';
+
+const getUserLabel = user => {
+  if (user?.displayName?.trim()) {
+    return user.displayName.trim();
+  }
+
+  if (user?.email?.trim()) {
+    return user.email.trim();
+  }
+
+  return 'Player';
+};
+
+const formatLobbyTimer = seconds => {
+  const minutes = Math.floor(seconds / 60)
+    .toString()
+    .padStart(2, '0');
+  const secs = (seconds % 60).toString().padStart(2, '0');
+  return `${minutes}m ${secs}s`;
+};
+
+const getContestCountdownSeconds = (contestBoard, now) => {
+  if (
+    contestBoard?.status === 'collecting' &&
+    typeof contestBoard?.activeRoundEndsAt === 'number'
+  ) {
+    return Math.max(
+      Math.ceil((contestBoard.activeRoundEndsAt - now) / 1000),
+      0,
+    );
+  }
+
+  return MATCHMAKING_WAIT_TIME_SECONDS;
+};
 
 const LobbyScreen = () => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
+  const [user, setUser] = useState(() => getCurrentUser());
+  const [contestBoards, setContestBoards] = useState({});
+  const [isLoadingCounts, setIsLoadingCounts] = useState(true);
+  const [joiningContestId, setJoiningContestId] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
 
-const handleHomePress = () => {
-  navigation.navigate('HomeScreen');
-};
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
 
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    let unsubscribe = null;
 
-  const gameCards = [
-    {
-      id: '1',
-      title: '1V1 BATTLE',
-      prizePool: '₹190',
-      entry: '100',
-      timer: '8M',
-      joined: '0 Joined',
-    },
-    {
-      id: '2',
-      title: '1 WINNER',
-      prizePool: '₹380',
-      entry: '100',
-      timer: '10M',
-      joined: '0 Joined',
-    },
-   
-  ];
+    const initializeLobby = async () => {
+      try {
+        const signedInUser = await ensureSignedIn('Player');
+        if (!isMounted) {
+          return;
+        }
 
-  const handleEntryPress = () => {
-    navigation.navigate('LudoBoardScreen')
-  };
+        setUser(signedInUser);
+        unsubscribe = subscribeToContestBoards(nextContestBoards => {
+          if (!isMounted) {
+            return;
+          }
 
-  const handleWalletPress= () => {
-    navigation.navigate("WalletScreen")
-  };
+          setContestBoards(nextContestBoards);
+          setIsLoadingCounts(false);
+        });
+      } catch (error) {
+        console.error('Failed to initialize contest lobby.', error);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setIsLoadingCounts(false);
+        Alert.alert(
+          'Lobby unavailable',
+          getFirebaseSetupErrorMessage(error),
+        );
+      }
+    };
+
+    initializeLobby();
+
+    return () => {
+      isMounted = false;
+      unsubscribe?.();
+    };
+  }, []);
+
+  const handleContestPress = useCallback(async contest => {
+    if (joiningContestId) {
+      return;
+    }
+
+    try {
+      setJoiningContestId(contest.id);
+      playSound('ui');
+      dispatch(resetGame());
+
+      const signedInUser = await ensureSignedIn('Player');
+      await joinContestQueue({
+        contestId: contest.id,
+        uid: signedInUser.uid,
+        name: getUserLabel(signedInUser),
+      });
+
+      navigation.navigate('WaitingForOpponentScreen', {
+        contestId: contest.id,
+        prizePool: contest.prizePool,
+        entryFee: contest.entryFee,
+        waitTimeSeconds: MATCHMAKING_WAIT_TIME_SECONDS,
+      });
+    } catch (error) {
+      console.error('Failed to join contest queue.', error);
+      Alert.alert(
+        'Matchmaking unavailable',
+        getFirebaseSetupErrorMessage(error),
+      );
+    } finally {
+      setJoiningContestId(null);
+    }
+  }, [dispatch, joiningContestId, navigation]);
+
+  const handleHomePress = useCallback(() => {
+    playSound('ui');
+    navigation.goBack();
+  }, [navigation]);
+
+  const handleProfilePress = useCallback(() => {
+    playSound('ui');
+    navigation.navigate('ProfileScreen');
+  }, [navigation]);
+
+  const handleWalletPress = useCallback(() => {
+    playSound('ui');
+    navigation.navigate('WalletScreen');
+  }, [navigation]);
+
+  const handleSettingsPress = useCallback(() => {
+    playSound('ui');
+    navigation.navigate('SettingsScreen');
+  }, [navigation]);
 
   return (
-    <View style={styles.container}>
-      {/* ✅ Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity 
-  style={styles.balanceContainer}
-  onPress={handleWalletPress}   // ✅ Attach here!
->
-  <Image
-    source={require('../assets/coin_icon.png')}
-    style={styles.coinIcon}
-  />
-  <Text style={styles.balanceText}>₹0</Text>
-</TouchableOpacity>
+    <ImageBackground
+      source={BackgroundImage}
+      resizeMode="cover"
+      style={styles.background}
+      imageStyle={styles.backgroundImage}
+    >
+      <StatusBar barStyle="light-content" backgroundColor="#14349a" />
 
-      </View>
-
-      {/* ✅ Game Cards */}
-      <ScrollView style={styles.cardList}>
-        {gameCards.map((game) => (
-          <View key={game.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{game.title}</Text>
-            <View style={styles.cardContent}>
-              <View>
-                <Text style={styles.prizeLabel}>Prize Pool</Text>
-                <Text style={styles.prizeValue}>{game.prizePool}</Text>
-                <Text style={styles.joined}>{game.joined}</Text>
-              </View>
-              <View style={styles.timerBox}>
-                <Text style={styles.timerText}>{game.timer}</Text>
-              </View>
+      <LinearGradient
+        colors={['rgba(12,34,112,0.9)', 'rgba(10,30,95,0.95)', 'rgba(7,20,77,0.98)']}
+        style={styles.screen}
+      >
+        <View style={styles.topShell}>
+          <LinearGradient
+            colors={['#5f86ff', '#3f64eb', '#2b49bf']}
+            style={styles.topCapsule}
+          >
+            <View style={styles.profileRow}>
               <TouchableOpacity
-                style={styles.entryButton}
-                onPress={handleEntryPress}>
-                <Text style={styles.entryText}>{game.entry}</Text>
+                activeOpacity={0.86}
+                onPress={handleProfilePress}
+                style={styles.profileTap}
+              >
+                <View style={styles.avatarRing}>
+                  <Image
+                    source={user?.photoURL ? {uri: user.photoURL} : ProfilePic}
+                    style={styles.avatar}
+                  />
+                </View>
+
+                <View style={styles.profileMeta}>
+                  <Text numberOfLines={1} style={styles.profileName}>
+                    {getUserLabel(user)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.88}
+                onPress={handleWalletPress}
+                style={styles.walletPill}
+              >
+                <Image source={CoinIcon} style={styles.walletIcon} />
+                <Text style={styles.walletAmount}>₹0</Text>
+                <View style={styles.walletAdd}>
+                  <Ionicons name="add" size={14} color="#ffffff" />
+                </View>
               </TouchableOpacity>
             </View>
+
+            <View style={styles.utilityRow}>
+              <TouchableOpacity activeOpacity={0.86} style={styles.utilityBubble}>
+                <Ionicons name="notifications" size={18} color="#d7e7ff" />
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.86} style={styles.utilityBubble}>
+                <Ionicons name="help-circle" size={19} color="#d7e7ff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.86}
+                onPress={handleSettingsPress}
+                style={styles.utilityBubbleGold}
+              >
+                <Ionicons name="settings-sharp" size={18} color="#fff8d0" />
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </View>
+
+        <LinearGradient
+          colors={['#4022b8', '#2b3bcc', '#1745c8']}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+          style={styles.promoBanner}
+        >
+          <View style={styles.promoContent}>
+            <Text style={styles.promoEyebrow}>GET ₹10</Text>
+            <Text style={styles.promoTitle}>Joining BONUS</Text>
+            <Text style={styles.promoCaption}>Jump into a queue and let the server find your rival.</Text>
           </View>
-        ))}
-      </ScrollView>
 
-     <TouchableOpacity style={styles.entryButton} onPress={handleHomePress}>
-  <Text style={styles.navIcon}>🏠</Text>
-</TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.9} style={styles.promoCta}>
+            <LinearGradient
+              colors={['#29f0d0', '#17d7b8']}
+              style={styles.promoCtaFill}
+            >
+              <Text style={styles.promoCtaText}>DOWNLOAD NOW</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </LinearGradient>
 
+        {isLoadingCounts ? (
+          <View style={styles.loaderWrap}>
+            <ActivityIndicator color="#ffffff" size="large" />
+            <Text style={styles.loaderText}>Loading contest boards...</Text>
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.cardList}
+            showsVerticalScrollIndicator={false}
+          >
+            {MATCHMAKING_CONTESTS.map((contest, index) => {
+              const contestBoard = contestBoards[contest.id] ?? null;
+              const queueCount = contestBoard?.activePlayerCount ?? 0;
+              const timerSeconds = getContestCountdownSeconds(contestBoard, now);
+              const isJoining = joiningContestId === contest.id;
+              const cardGradient =
+                index % 2 === 0
+                  ? ['#2c51cf', '#1c3ca6', '#143089']
+                  : ['#2a61d0', '#2147b4', '#15338f'];
 
-    </View>
+              return (
+                <TouchableOpacity
+                  key={contest.id}
+                  activeOpacity={0.92}
+                  disabled={Boolean(joiningContestId)}
+                  onPress={() => handleContestPress(contest)}
+                  style={styles.cardTouchable}
+                >
+                  <LinearGradient colors={cardGradient} style={styles.cardShell}>
+                    <View style={styles.ribbonWrap}>
+                      <LinearGradient
+                        colors={['#5ce59f', '#2acb77']}
+                        style={styles.ribbon}
+                      >
+                        <Text style={styles.ribbonText}>2 PLAYERS</Text>
+                      </LinearGradient>
+                    </View>
+
+                    <View style={styles.cardInner}>
+                      <View style={styles.cardTopRow}>
+                        <View style={styles.cardStatBlock}>
+                          <Text style={styles.cardLabel}>Prize Pool</Text>
+                          <View style={styles.darkPill}>
+                            <Text style={styles.prizeValue}>₹{contest.prizePool}</Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.cardTimerWrap}>
+                          <View style={styles.timerChip}>
+                            <Ionicons name="time-outline" size={16} color="#ffc6d8" />
+                            <Text style={styles.timerText}>
+                              {formatLobbyTimer(timerSeconds)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.cardStatBlock}>
+                          <Text style={styles.cardLabel}>Entry</Text>
+                          <LinearGradient
+                            colors={['#37f2ce', '#14d4b4']}
+                            style={styles.freeButton}
+                          >
+                            {isJoining ? (
+                              <ActivityIndicator color="#104e53" size="small" />
+                            ) : (
+                              <Text style={styles.freeButtonText}>{contest.entryFee}</Text>
+                            )}
+                          </LinearGradient>
+                        </View>
+                      </View>
+
+                      <View style={styles.cardBottomRow}>
+                        <View style={styles.joinedRow}>
+                          <Ionicons name="people-outline" size={15} color="#d6e4ff" />
+                          <Text style={styles.joinedText}>{queueCount} Joined</Text>
+                        </View>
+
+                        <View style={styles.cardBadge}>
+                          <MaterialCommunityIcons name="hexagon-outline" size={16} color="#d8e5ff" />
+                        </View>
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={handleHomePress}
+          style={styles.homeButtonWrap}
+        >
+          <LinearGradient
+            colors={['#79f0a1', '#31ce74']}
+            style={styles.homeButton}
+          >
+            <Ionicons name="home" size={24} color="#ffffff" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </LinearGradient>
+    </ImageBackground>
   );
 };
 
 export default LobbyScreen;
 
 const styles = StyleSheet.create({
-  // ✅ ... Keep your same styles here, no changes needed
-  container: {
+  background: {
     flex: 1,
-    backgroundColor: '#003366',
   },
-  topBar: {
+  backgroundImage: {
+    opacity: 0.28,
+  },
+  screen: {
+    flex: 1,
+    paddingTop: 18,
+    paddingHorizontal: 10,
+    paddingBottom: 16,
+  },
+  topShell: {
+    paddingHorizontal: 2,
+  },
+  topCapsule: {
+    borderRadius: 34,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(202,223,255,0.22)',
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     alignItems: 'center',
-    backgroundColor: '#004080',
-    padding: 15,
+    justifyContent: 'space-between',
+    shadowColor: '#06154f',
+    shadowOpacity: 0.38,
+    shadowRadius: 16,
+    shadowOffset: {width: 0, height: 8},
+    elevation: 8,
   },
-  balanceContainer: {
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    paddingRight: 8,
   },
-  coinIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 5,
+  profileTap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
   },
-  balanceText: {
-    color: '#fff',
+  avatarRing: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 2,
+    borderColor: '#ffc857',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#133082',
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  profileMeta: {
+    marginLeft: 10,
+    flexShrink: 1,
+  },
+  profileName: {
+    color: '#dbe8ff',
+    fontSize: 15,
+    fontWeight: '800',
+    fontFamily: 'Philosopher-Bold',
+  },
+  walletPill: {
+    minHeight: 30,
+    margin: 12,
+    borderRadius: 15,
+    backgroundColor: 'rgba(14, 22, 74, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+
+  },
+  walletIcon: {
+    width: 16,
+    height: 16,
+    tintColor: '#ffe083',
+    
+    
+  },
+  walletAmount: {
+    marginLeft: 8,
+    color: '#ffffff',
     fontSize: 16,
+    fontWeight: '900',
+  },
+  walletAdd: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    marginLeft: 10,
+    backgroundColor: '#35d76f',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  utilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  utilityBubble: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    marginLeft: 6,
+    backgroundColor: 'rgba(19, 44, 132, 0.86)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  utilityBubbleGold: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: 6,
+    backgroundColor: '#f1a11e',
+    borderWidth: 1,
+    borderColor: '#ffe39f',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoBanner: {
+    marginTop: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(119, 214, 255, 0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  promoContent: {
+    flex: 1,
+    paddingRight: 14,
+  },
+  promoEyebrow: {
+    color: '#a8d7ff',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.3,
+  },
+  promoTitle: {
+    marginTop: 2,
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '900',
+    fontFamily: 'Philosopher-Bold',
+  },
+  promoCaption: {
+    marginTop: 6,
+    color: '#d3ddff',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  promoCta: {
+    width: 132,
+  },
+  promoCtaFill: {
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  promoCtaText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  loaderWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loaderText: {
+    marginTop: 12,
+    color: '#dce8ff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   cardList: {
-    flex: 1,
-    paddingHorizontal: 10,
+    paddingTop: 14,
+    paddingBottom: 86,
   },
-  card: {
-    backgroundColor: '#004d99',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
+  cardTouchable: {
+    marginBottom: 16,
   },
-  cardTitle: {
-    color: '#00ffcc',
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 10,
+  cardShell: {
+    borderRadius: 20,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: '#1ce3d6',
+    shadowColor: '#0cdad7',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: {width: 0, height: 6},
+    elevation: 7,
   },
-  cardContent: {
+  ribbonWrap: {
+    position: 'absolute',
+    top: -9,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  ribbon: {
+    minWidth: 122,
+    height: 28,
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  ribbonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+  },
+  cardInner: {
+    borderRadius: 18,
+    backgroundColor: 'rgba(19, 34, 110, 0.92)',
+    paddingTop: 24,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+  },
+  cardTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  prizeLabel: {
-    color: '#fff',
-    fontSize: 12,
+  cardStatBlock: {
+    flex: 1,
+  },
+  cardLabel: {
+    color: '#bccfff',
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  darkPill: {
+    marginTop: 10,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#182d7a',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   prizeValue: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginVertical: 5,
+    color: '#ffffff',
+    fontSize: 30,
+    fontWeight: '900',
+    fontFamily: 'Philosopher-Bold',
   },
-  joined: {
-    color: '#fff',
-    fontSize: 12,
+  cardTimerWrap: {
+    width: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  timerBox: {
-    backgroundColor: '#00264d',
-    padding: 8,
-    borderRadius: 5,
+  timerChip: {
+    minWidth: 104,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#18327d',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timerText: {
-    color: '#ff5050',
-    fontWeight: 'bold',
-    fontSize: 12,
+    marginLeft: 5,
+    color: '#ff6786',
+    fontSize: 14,
+    fontWeight: '900',
   },
-  entryButton: {
-    backgroundColor: '#00cc66',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+  freeButton: {
+    marginTop: 10,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
-  entryText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  freeButtonText: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '900',
+    fontFamily: 'Philosopher-Bold',
   },
-  bottomNav: {
+  cardBottomRow: {
+    marginTop: 14,
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    backgroundColor: '#003366',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  navIcon: {
-    fontSize: 22,
-    justifyContent:'center',
-    color: '#fff',
+  joinedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  joinedText: {
+    marginLeft: 6,
+    color: '#d6e4ff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cardBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  homeButtonWrap: {
+    position: 'absolute',
+    bottom: 18,
+    alignSelf: 'center',
+  },
+  homeButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.18)',
+    shadowColor: '#39e08e',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: {width: 0, height: 6},
+    elevation: 8,
   },
 });

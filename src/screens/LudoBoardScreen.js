@@ -10,6 +10,7 @@ import {LinearGradient} from 'expo-linear-gradient';
 import {
   Alert,
   Animated,
+  BackHandler,
   Image,
   Text,
   TouchableOpacity,
@@ -48,6 +49,7 @@ import {
 } from '../constants/Scaling';
 import {useGameTime} from '../helpers/GameTime';
 import {getNextActivePlayer} from '../helpers/LudoMovementEngine';
+import {resetAndNavigate} from '../helpers/NavigationUtil';
 import {
   Plot1Data,
   Plot2Data,
@@ -60,6 +62,9 @@ import {
 } from '../firebase/auth';
 import {getFirebaseSetupErrorMessage} from '../firebase/errorMessages';
 import {
+  finishRoomOnTimeout,
+  normalizeRoomId,
+  ONLINE_MATCH_TIME_LIMIT_SECONDS,
   queueRoomAction,
   setPlayerConnected,
   subscribeToRoom,
@@ -78,6 +83,7 @@ import {
   announceWinners,
   hydrateGameFromServer,
   recordMissedRoll,
+  resetGame,
   updatePlayerChance,
 } from '../redux/reducers/gameSlice';
 
@@ -95,6 +101,26 @@ const getTurnMissBannerText = missedCount => {
   }
 
   return '';
+};
+
+const getOnlineRoomTimeLeft = room => {
+  const timeLimit =
+    typeof room?.timeLimit === 'number' && room.timeLimit > 0
+      ? room.timeLimit
+      : ONLINE_MATCH_TIME_LIMIT_SECONDS;
+
+  if (typeof room?.startTime !== 'number') {
+    return timeLimit;
+  }
+
+  const referenceTime =
+    typeof room?.endTime === 'number' ? room.endTime : Date.now();
+  const elapsedSeconds = Math.max(
+    Math.floor((referenceTime - room.startTime) / 1000),
+    0,
+  );
+
+  return Math.max(timeLimit - elapsedSeconds, 0);
 };
 
 const BoardBackdrop = () => (
@@ -133,7 +159,7 @@ const BoardBackdrop = () => (
   </View>
 );
 
-const PrizePoolBanner = () => {
+const PrizePoolBanner = ({amount = 250}) => {
   const bannerHeight = 50;
 
   return (
@@ -195,7 +221,7 @@ const PrizePoolBanner = () => {
               textShadowRadius: 4,
             }}
           >
-            Rs. 250
+            Rs. {amount}
           </Text>
         </View>
       </View>
@@ -203,7 +229,7 @@ const PrizePoolBanner = () => {
   );
 };
 
-const LudoBoardScreen = ({route}) => {
+const LudoBoardScreen = ({navigation, route}) => {
   const dispatch = useDispatch();
   const player1 = useSelector(selectPlayer1);
   const player2 = useSelector(selectPlayer2);
@@ -216,8 +242,10 @@ const LudoBoardScreen = ({route}) => {
   const isFocused = useIsFocused();
   const {seconds, formatTime} = useGameTime(5 * 60);
   const timerCompletedRef = useRef(false);
+  const onlineMatchExpiryHandledRef = useRef(false);
+  const allowExitNavigationRef = useRef(false);
   const gameMode = route?.params?.gameMode ?? 'offline';
-  const roomId = route?.params?.roomId ?? null;
+  const roomId = normalizeRoomId(route?.params?.roomId);
   const playerNo = route?.params?.playerNo ?? null;
   const isOnlineMode = gameMode === 'online' && Boolean(roomId);
 
@@ -230,9 +258,11 @@ const LudoBoardScreen = ({route}) => {
   const [room, setRoom] = useState(null);
   const [roomLoaded, setRoomLoaded] = useState(false);
   const [isQueuingRoomAction, setIsQueuingRoomAction] = useState(false);
+  const [onlineTimeLeft, setOnlineTimeLeft] = useState(ONLINE_MATCH_TIME_LIMIT_SECONDS);
   const boardSize = Math.min(deviceWidth * 0.965, deviceHeight * 0.59);
   const firstMoverAvatarSize = Math.min(deviceWidth * 0.15, 70);
   const footerNameWidth = Math.min(deviceWidth * 0.42, 80);
+  const isRoomFinished = isOnlineMode && (room?.status === 'finished' || winner != null);
   const isRoomReadyForActions =
     !isOnlineMode ||
     (
@@ -240,15 +270,29 @@ const LudoBoardScreen = ({route}) => {
       Boolean(room?.players?.player1?.uid) &&
       Boolean(room?.players?.player2?.uid)
     );
-  const isWaitingForOpponent = isOnlineMode && (!roomLoaded || !isRoomReadyForActions);
+  const isWaitingForOpponent =
+    isOnlineMode &&
+    !isRoomFinished &&
+    (!roomLoaded || !isRoomReadyForActions);
+  const prizePoolAmount = room?.prizePool ?? route?.params?.prizePool ?? 250;
   const topPlayerName = room?.players?.player2?.name ?? 'Player 2';
   const bottomPlayerName = room?.players?.player1?.name ?? 'Player 1';
-  const timerLabel = isOnlineMode ? 'LIVE' : formatTime(seconds);
+  const displayedTimeLeft = isOnlineMode ? onlineTimeLeft : seconds;
+  const timerLabel = formatTime(displayedTimeLeft);
+
+  const showMenuSheet = useCallback(() => {
+    setMenuVisible(currentVisible => {
+      if (!currentVisible) {
+        playSound('ui');
+      }
+
+      return true;
+    });
+  }, []);
 
   const handleMenuPress = useCallback(() => {
-    playSound('ui');
-    setMenuVisible(true);
-  }, []);
+    showMenuSheet();
+  }, [showMenuSheet]);
 
   const handleTopControlPress = useCallback(() => {
     playSound('ui');
@@ -264,6 +308,13 @@ const LudoBoardScreen = ({route}) => {
   const handleCloseMenu = useCallback(() => {
     setMenuVisible(false);
   }, []);
+
+  const handleExitGame = useCallback(() => {
+    allowExitNavigationRef.current = true;
+    setMenuVisible(false);
+    dispatch(resetGame());
+    resetAndNavigate('HomeScreen');
+  }, [dispatch]);
 
   const handleCloseMissedTurnInfo = useCallback(() => {
     setMissedTurnInfoPlayer(null);
@@ -292,6 +343,7 @@ const LudoBoardScreen = ({route}) => {
       playSound('ui');
       await queueRoomAction({
         roomId,
+        roomSnapshot: room,
         uid: currentUser.uid,
         playerNo,
         type,
@@ -306,7 +358,7 @@ const LudoBoardScreen = ({route}) => {
     } finally {
       setIsQueuingRoomAction(false);
     }
-  }, [isOnlineMode, isQueuingRoomAction, isRoomReadyForActions, playerNo, roomId]);
+  }, [isOnlineMode, isQueuingRoomAction, isRoomReadyForActions, playerNo, room, roomId]);
 
   const handleOnlineDicePress = useCallback(async () => {
     if (isOnlineMode && room?.game?.chancePlayer !== playerNo) {
@@ -390,6 +442,50 @@ const LudoBoardScreen = ({route}) => {
   }, [isFocused]);
 
   useEffect(() => {
+    if (winner != null) {
+      return undefined;
+    }
+
+    const backSubscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (allowExitNavigationRef.current) {
+          return false;
+        }
+
+        if (menuVisible) {
+          setMenuVisible(false);
+          return true;
+        }
+
+        showMenuSheet();
+        return true;
+      },
+    );
+
+    return () => {
+      backSubscription.remove?.();
+    };
+  }, [menuVisible, showMenuSheet, winner]);
+
+  useEffect(() => {
+    if (!navigation?.addListener || winner != null) {
+      return undefined;
+    }
+
+    const unsubscribe = navigation.addListener('beforeRemove', event => {
+      if (allowExitNavigationRef.current) {
+        return;
+      }
+
+      event.preventDefault();
+      showMenuSheet();
+    });
+
+    return unsubscribe;
+  }, [navigation, showMenuSheet, winner]);
+
+  useEffect(() => {
     if (isOnlineMode) {
       return;
     }
@@ -401,9 +497,69 @@ const LudoBoardScreen = ({route}) => {
     timerCompletedRef.current = true;
     const player1Score = scores?.player1 ?? 0;
     const player2Score = scores?.player2 ?? 0;
-    const finalWinner = player2Score > player1Score ? 2 : 1;
+    const finalWinner =
+      player1Score === player2Score ? 'draw' : player2Score > player1Score ? 2 : 1;
     dispatch(announceWinners(finalWinner));
   }, [dispatch, isOnlineMode, scores, seconds, winner]);
+
+  useEffect(() => {
+    if (!isOnlineMode) {
+      setOnlineTimeLeft(ONLINE_MATCH_TIME_LIMIT_SECONDS);
+      return undefined;
+    }
+
+    const syncOnlineTimer = () => {
+      setOnlineTimeLeft(getOnlineRoomTimeLeft(room));
+    };
+
+    syncOnlineTimer();
+
+    if (typeof room?.startTime !== 'number' || typeof room?.endTime === 'number') {
+      return undefined;
+    }
+
+    const interval = setInterval(syncOnlineTimer, 250);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isOnlineMode, room, room?.endTime, room?.startTime, room?.timeLimit]);
+
+  useEffect(() => {
+    if (!isOnlineMode || !roomId) {
+      onlineMatchExpiryHandledRef.current = false;
+      return undefined;
+    }
+
+    if (room?.status !== 'playing' || room?.game?.winner != null || onlineTimeLeft > 0) {
+      onlineMatchExpiryHandledRef.current = false;
+      return undefined;
+    }
+
+    const currentUser = getCurrentUser();
+    if (
+      !currentUser?.uid ||
+      room?.players?.player1?.uid !== currentUser.uid ||
+      onlineMatchExpiryHandledRef.current
+    ) {
+      return undefined;
+    }
+
+    onlineMatchExpiryHandledRef.current = true;
+    finishRoomOnTimeout(roomId).catch(error => {
+      onlineMatchExpiryHandledRef.current = false;
+      console.error('Failed to finish expired online room.', error);
+    });
+
+    return undefined;
+  }, [
+    isOnlineMode,
+    onlineTimeLeft,
+    room?.game?.winner,
+    room?.players?.player1?.uid,
+    room?.status,
+    roomId,
+  ]);
 
   useEffect(() => {
     if (isOnlineMode) {
@@ -631,7 +787,7 @@ const LudoBoardScreen = ({route}) => {
                 </TouchableOpacity>
               </View>
 
-              <PrizePoolBanner />
+              <PrizePoolBanner amount={prizePoolAmount} />
             </View>
 
             <View
@@ -673,7 +829,7 @@ const LudoBoardScreen = ({route}) => {
                 <Text
                   style={{
                     marginLeft: 6,
-                    color: '#39ff34',
+                    color: displayedTimeLeft < 30 ? '#ff5a5f' : '#39ff34',
                     fontSize: 18,
                     fontWeight: '900',
                     letterSpacing: 1,
@@ -1248,7 +1404,13 @@ const LudoBoardScreen = ({route}) => {
             </View>
           ) : null}
 
-          {menuVisible ? <MenuModal onPressHide={handleCloseMenu} visible={menuVisible} /> : null}
+          {menuVisible ? (
+            <MenuModal
+              onPressExit={handleExitGame}
+              onPressHide={handleCloseMenu}
+              visible={menuVisible}
+            />
+          ) : null}
           {winner != null ? <WinModal winner={winner} /> : null}
         </View>
       </View>

@@ -83,7 +83,7 @@ const SettingsRow = ({icon, label, value, onChange}) => {
   );
 };
 
-const MenuModal = ({visible, onPressHide}) => {
+const MenuModal = ({visible, onPressExit, onPressHide}) => {
   const dispatch = useDispatch();
   const settings = useSelector(selectGameSettings) ?? DEFAULT_SETTINGS;
 
@@ -99,10 +99,15 @@ const MenuModal = ({visible, onPressHide}) => {
   );
 
   const handleExitGame = useCallback(() => {
+    if (typeof onPressExit === 'function') {
+      onPressExit();
+      return;
+    }
+
     dispatch(resetGame());
     onPressHide();
     resetAndNavigate('HomeScreen');
-  }, [dispatch, onPressHide]);
+  }, [dispatch, onPressExit, onPressHide]);
 
   return (
     <Modal

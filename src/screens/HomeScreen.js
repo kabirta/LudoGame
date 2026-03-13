@@ -26,7 +26,11 @@ import CoinIcon from '../assets/coin_icon.png';
 import WalletIcon from '../assets/wallet.png';
 import {ensureSignedIn, getCurrentUser} from '../firebase/auth';
 import {getFirebaseSetupErrorMessage} from '../firebase/errorMessages';
-import {createRoom, findJoinableRoom, joinRoom} from '../firebase/rooms';
+import {
+  createRoom,
+  joinRoom,
+  normalizeRoomId,
+} from '../firebase/rooms';
 import { playSound, stopSound } from '../helpers/SoundUtility';
 import { resetGame } from '../redux/reducers/gameSlice';
 
@@ -110,12 +114,14 @@ const HomeScreen = ({ navigation }) => {
   }, [resetPrivateRoomState]);
 
   const navigateToOnlineRoom = useCallback(async ({roomId, playerNo}) => {
+    const normalizedRoomId = normalizeRoomId(roomId);
+
     await stopSound();
     dispatch(resetGame());
     resetPrivateRoomState();
     setRoomSheetVisible(false);
     navigation.navigate('LudoBoardScreen', {
-      roomId,
+      roomId: normalizedRoomId,
       gameMode: 'online',
       playerNo,
     });
@@ -123,55 +129,9 @@ const HomeScreen = ({ navigation }) => {
   }, [dispatch, navigation, resetPrivateRoomState]);
 
   const startOnlineMatch = useCallback(async () => {
-    try {
-      await stopSound();
-      dispatch(resetGame());
-
-      const signedInUser = await ensureSignedIn('Player');
-      const playerName = getUserLabel(signedInUser);
-      const waitingRoom = await findJoinableRoom({
-        excludeUid: signedInUser.uid,
-      });
-
-      let roomId = null;
-      let playerNo = 1;
-
-      if (waitingRoom?.roomId) {
-        try {
-          await joinRoom({
-            roomId: waitingRoom.roomId,
-            uid: signedInUser.uid,
-            name: playerName,
-          });
-          roomId = waitingRoom.roomId;
-          playerNo = 2;
-        } catch (joinError) {
-          console.warn('Waiting room join failed, creating a new room instead.', joinError);
-        }
-      }
-
-      if (!roomId) {
-        roomId = await createRoom({
-          uid: signedInUser.uid,
-          name: playerName,
-        });
-        playerNo = 1;
-      }
-
-      navigation.navigate('LudoBoardScreen', {
-        roomId,
-        gameMode: 'online',
-        playerNo,
-      });
-      playSound('game_start');
-    } catch (error) {
-      console.error(error);
-      Alert.alert(
-        'Online match unavailable',
-        getFirebaseSetupErrorMessage(error),
-      );
-    }
-  }, [dispatch, navigation]);
+    playSound('ui');
+    navigation.navigate('LobbyScreen');
+  }, [navigation]);
 
   const createPrivateRoom = useCallback(async () => {
     try {
@@ -197,7 +157,7 @@ const HomeScreen = ({ navigation }) => {
   }, []);
 
   const joinPrivateRoom = useCallback(async () => {
-    const roomId = joinRoomCode.trim();
+    const roomId = normalizeRoomId(joinRoomCode);
 
     if (!roomId) {
       Alert.alert('Room code required', 'Enter the 6-digit room code to join.');

@@ -92,8 +92,11 @@ const WinActionButton = ({variant, onPress}) => {
 const WinModal = ({winner}) => {
   const dispatch = useDispatch();
   const [visible, setVisible] = useState(!!winner);
-  const winnerColor = colorPlayer[(winner ?? 1) - 1] ?? '#f4bf34';
-  const winnerLabel = PLAYER_NAMES[winner] ?? `Player ${winner}`;
+  const isDraw = winner === 'draw';
+  const winnerColor = isDraw
+    ? '#f4bf34'
+    : colorPlayer[(winner ?? 1) - 1] ?? '#f4bf34';
+  const winnerLabel = isDraw ? 'Match Drawn' : PLAYER_NAMES[winner] ?? `Player ${winner}`;
 
   useEffect(() => {
     setVisible(!!winner);
@@ -215,7 +218,7 @@ const WinModal = ({winner}) => {
                   justifyContent: 'center',
                 }}
               >
-                <Pile player={winner} color={winnerColor} />
+                <Pile player={isDraw ? 1 : winner} color={winnerColor} />
               </View>
 
               <Text
@@ -227,7 +230,7 @@ const WinModal = ({winner}) => {
                   letterSpacing: 2.4,
                 }}
               >
-                CONGRATULATIONS
+                {isDraw ? 'TIME UP' : 'CONGRATULATIONS'}
               </Text>
 
               <Text
@@ -239,7 +242,7 @@ const WinModal = ({winner}) => {
                   textAlign: 'center',
                 }}
               >
-                {winnerLabel} Wins
+                {isDraw ? winnerLabel : `${winnerLabel} Wins`}
               </Text>
 
               <Text
@@ -251,7 +254,9 @@ const WinModal = ({winner}) => {
                   lineHeight: 21,
                 }}
               >
-                All tokens reached home first. The board is yours.
+                {isDraw
+                  ? 'The timer ended with level scores. Start a fresh room for a rematch.'
+                  : 'All tokens reached home first. The board is yours.'}
               </Text>
             </View>
 
@@ -293,7 +298,7 @@ const WinModal = ({winner}) => {
                     letterSpacing: 1,
                   }}
                 >
-                  WINNER
+                  {isDraw ? 'RESULT' : 'WINNER'}
                 </Text>
               </View>
             </View>

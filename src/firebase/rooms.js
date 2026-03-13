@@ -1,7 +1,6 @@
 import {
   equalTo,
   get,
-  off,
   onValue,
   orderByChild,
   push,
@@ -19,7 +18,84 @@ import {db} from './config';
 const ROOM_CODE_LENGTH = 6;
 const MAX_ROOM_CODE_ATTEMPTS = 12;
 const ONLINE_TURN_TIMEOUT_MS = 15000;
+export const ONLINE_MATCH_TIME_LIMIT_SECONDS = 8 * 60;
 const ROOM_ACTION_WAIT_MS = 12000;
+
+export const normalizeRoomId = roomId => `${roomId ?? ''}`.trim();
+
+const getRoomTimeLimitSeconds = room =>
+  typeof room?.timeLimit === 'number' && Number.isFinite(room.timeLimit) && room.timeLimit > 0
+    ? room.timeLimit
+    : ONLINE_MATCH_TIME_LIMIT_SECONDS;
+
+const getRoomStartTime = room =>
+  typeof room?.startTime === 'number' && Number.isFinite(room.startTime)
+    ? room.startTime
+    : null;
+
+const getRoomWinnerUid = (room, winner) => {
+  if (winner === 'draw') {
+    return 'draw';
+  }
+
+  if (winner === 1 || winner === 'player1') {
+    return room?.players?.player1?.uid ?? null;
+  }
+
+  if (winner === 2 || winner === 'player2') {
+    return room?.players?.player2?.uid ?? null;
+  }
+
+  return null;
+};
+
+const getTimedMatchWinner = room => {
+  const player1Score = room?.game?.scores?.player1 ?? 0;
+  const player2Score = room?.game?.scores?.player2 ?? 0;
+
+  if (player1Score === player2Score) {
+    return {
+      roomWinner: 'draw',
+      gameWinner: 'draw',
+    };
+  }
+
+  const winner = player1Score > player2Score ? 1 : 2;
+  return {
+    roomWinner: getRoomWinnerUid(room, winner),
+    gameWinner: winner,
+  };
+};
+
+const hasTimedMatchExpired = (room, now = Date.now()) => {
+  const startTime = getRoomStartTime(room);
+  if (startTime == null) {
+    return false;
+  }
+
+  return startTime + getRoomTimeLimitSeconds(room) * 1000 <= now;
+};
+
+const buildTimedOutRoomState = (room, now) => {
+  const {roomWinner, gameWinner} = getTimedMatchWinner(room);
+
+  return {
+    ...room,
+    status: 'finished',
+    winner: roomWinner,
+    endTime: now,
+    updatedAt: serverTimestamp(),
+    game: {
+      ...room?.game,
+      winner: gameWinner,
+      isDiceRolled: false,
+      touchDiceBlock: false,
+      cellSelectionPlayer: -1,
+      pileSelectionPlayer: -1,
+      turnDeadlineAt: now,
+    },
+  };
+};
 
 const createRoomError = (code, message) => {
   const error = new Error(message);
@@ -61,13 +137,35 @@ const isRoomReadyForAction = room =>
   Boolean(room?.players?.player1?.uid) &&
   Boolean(room?.players?.player2?.uid);
 
-const assertRoomReadyForAction = async ({roomId, uid, playerNo}) => {
-  const room = await getRoom(roomId);
+const assertRoomReadyForAction = async ({roomId, roomSnapshot = null, uid, playerNo}) => {
+  const normalizedRoomId = normalizeRoomId(roomId);
+  const room = roomSnapshot ?? await getRoom(normalizedRoomId);
 
   if (!room) {
     throw createRoomError(
       'room/unavailable',
       'Room code is invalid or the room no longer exists.',
+    );
+  }
+
+  if (room?.status === 'finished' || room?.game?.winner != null) {
+    throw createRoomError(
+      'room/finished',
+      'This room already has a winner.',
+    );
+  }
+
+  if (room?.status === 'waiting') {
+    throw createRoomError(
+      'room/not-ready',
+      'Wait for the opponent to join before sending online moves.',
+    );
+  }
+
+  if (room?.status !== 'playing') {
+    throw createRoomError(
+      'room/inactive',
+      'This room is no longer active.',
     );
   }
 
@@ -82,13 +180,6 @@ const assertRoomReadyForAction = async ({roomId, uid, playerNo}) => {
     throw createRoomError(
       'room/forbidden',
       'This device is not the active owner of that player slot in the room.',
-    );
-  }
-
-  if (room?.game?.winner != null) {
-    throw createRoomError(
-      'room/finished',
-      'This room already has a winner.',
     );
   }
 };
@@ -107,8 +198,8 @@ const createRoomActionError = reason => {
       );
     case 'room-not-playing':
       return createRoomError(
-        'room/unavailable',
-        'Room code is invalid or the room is no longer available.',
+        'room/inactive',
+        'This room is no longer active.',
       );
     case 'player-mismatch':
       return createRoomError(
@@ -193,8 +284,14 @@ const waitForRoomActionResult = actionRef =>
     );
   });
 
-const buildWaitingRoomState = ({uid, name}) => ({
+const buildWaitingRoomState = ({roomId, uid, name}) => ({
+  code: roomId,
   status: 'waiting',
+  currentTurn: uid,
+  startTime: null,
+  timeLimit: ONLINE_MATCH_TIME_LIMIT_SECONDS,
+  endTime: null,
+  winner: null,
   createdAt: serverTimestamp(),
   updatedAt: serverTimestamp(),
   hostUid: uid,
@@ -218,7 +315,7 @@ export const createRoom = async ({uid, name}) => {
         return;
       }
 
-      return buildWaitingRoomState({uid, name});
+      return buildWaitingRoomState({roomId, uid, name});
     });
 
     if (result.committed && result.snapshot.exists()) {
@@ -233,7 +330,9 @@ export const createRoom = async ({uid, name}) => {
 };
 
 export const joinRoom = async ({roomId, uid, name}) => {
-  const roomRef = ref(db, `rooms/${roomId}`);
+  const normalizedRoomId = normalizeRoomId(roomId);
+  const roomRef = ref(db, `rooms/${normalizedRoomId}`);
+  const joinedAt = Date.now();
 
   const result = await runTransaction(roomRef, currentRoom => {
     if (!currentRoom || currentRoom.status !== 'waiting') {
@@ -242,7 +341,13 @@ export const joinRoom = async ({roomId, uid, name}) => {
 
     return {
       ...currentRoom,
+      code: normalizeRoomId(currentRoom.code || normalizedRoomId),
       status: 'playing',
+      currentTurn: currentRoom?.players?.player1?.uid ?? currentRoom?.hostUid ?? null,
+      startTime: joinedAt,
+      timeLimit: getRoomTimeLimitSeconds(currentRoom),
+      endTime: null,
+      winner: null,
       updatedAt: serverTimestamp(),
       players: {
         ...currentRoom.players,
@@ -278,7 +383,12 @@ export const joinRoom = async ({roomId, uid, name}) => {
 };
 
 export const getRoom = async roomId => {
-  const snapshot = await get(ref(db, `rooms/${roomId}`));
+  const normalizedRoomId = normalizeRoomId(roomId);
+  if (!normalizedRoomId) {
+    return null;
+  }
+
+  const snapshot = await get(ref(db, `rooms/${normalizedRoomId}`));
   return snapshot.exists() ? snapshot.val() : null;
 };
 
@@ -319,44 +429,50 @@ export const findJoinableRoom = async ({excludeUid} = {}) => {
 };
 
 export const subscribeToRoom = (roomId, callback) => {
-  const roomRef = ref(db, `rooms/${roomId}`);
+  const normalizedRoomId = normalizeRoomId(roomId);
+  const roomRef = ref(db, `rooms/${normalizedRoomId}`);
 
-  const listener = onValue(roomRef, snapshot => {
+  return onValue(roomRef, snapshot => {
     callback(snapshot.exists() ? snapshot.val() : null);
   });
-
-  return () => {
-    off(roomRef, 'value', listener);
-  };
 };
 
 export const subscribeToRoomGame = (roomId, callback) => {
-  const gameRef = ref(db, `rooms/${roomId}/game`);
+  const normalizedRoomId = normalizeRoomId(roomId);
+  const gameRef = ref(db, `rooms/${normalizedRoomId}/game`);
 
-  const listener = onValue(gameRef, snapshot => {
+  return onValue(gameRef, snapshot => {
     callback(snapshot.exists() ? snapshot.val() : null);
   });
-
-  return () => {
-    off(gameRef, 'value', listener);
-  };
 };
 
 export const setPlayerConnected = async ({roomId, playerNo, connected}) => {
-  await update(ref(db, `rooms/${roomId}`), {
+  const normalizedRoomId = normalizeRoomId(roomId);
+
+  await update(ref(db, `rooms/${normalizedRoomId}`), {
     [`players/player${playerNo}/connected`]: connected,
     updatedAt: serverTimestamp(),
   });
 };
 
-export const queueRoomAction = async ({roomId, uid, playerNo, type, payload = {}}) => {
+export const queueRoomAction = async ({
+  roomId,
+  roomSnapshot = null,
+  uid,
+  playerNo,
+  type,
+  payload = {},
+}) => {
+  const normalizedRoomId = normalizeRoomId(roomId);
+
   await assertRoomReadyForAction({
-    roomId,
+    roomId: normalizedRoomId,
+    roomSnapshot,
     uid,
     playerNo,
   });
 
-  const actionRef = push(ref(db, `roomActions/${roomId}`));
+  const actionRef = push(ref(db, `roomActions/${normalizedRoomId}`));
 
   await set(actionRef, {
     uid,
@@ -368,4 +484,35 @@ export const queueRoomAction = async ({roomId, uid, playerNo, type, payload = {}
   });
 
   return waitForRoomActionResult(actionRef);
+};
+
+export const finishRoomOnTimeout = async roomId => {
+  const normalizedRoomId = normalizeRoomId(roomId);
+  if (!normalizedRoomId) {
+    return null;
+  }
+
+  const roomRef = ref(db, `rooms/${normalizedRoomId}`);
+  const now = Date.now();
+  const result = await runTransaction(roomRef, currentRoom => {
+    if (!currentRoom || currentRoom.status !== 'playing') {
+      return currentRoom;
+    }
+
+    if (currentRoom?.game?.winner != null) {
+      return currentRoom;
+    }
+
+    if (!hasTimedMatchExpired(currentRoom, now)) {
+      return currentRoom;
+    }
+
+    return buildTimedOutRoomState(currentRoom, now);
+  });
+
+  if (!result.snapshot.exists()) {
+    return null;
+  }
+
+  return result.snapshot.val();
 };
