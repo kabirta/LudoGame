@@ -360,9 +360,30 @@ const updateRoomWithGame = (room, game, now, extra = {}) => ({
   updatedAt: now,
 });
 
+const getRoomActionAvailabilityReason = room => {
+  if (!room) {
+    return 'room-not-found';
+  }
+
+  if (room.status === 'waiting') {
+    return 'room-waiting';
+  }
+
+  if (room.status !== 'playing') {
+    return 'room-not-playing';
+  }
+
+  if (!room?.players?.player1?.uid || !room?.players?.player2?.uid) {
+    return 'room-waiting';
+  }
+
+  return null;
+};
+
 const applyRollAction = ({room, action, roomId, actionId, now, randomFn}) => {
-  if (!room || room.status !== 'playing') {
-    return {ok: false, reason: 'room-not-playing'};
+  const roomAvailabilityReason = getRoomActionAvailabilityReason(room);
+  if (roomAvailabilityReason) {
+    return {ok: false, reason: roomAvailabilityReason};
   }
 
   const expectedUid = resolveActionPlayer(room, action.playerNo);
@@ -476,8 +497,9 @@ const applyRollAction = ({room, action, roomId, actionId, now, randomFn}) => {
 };
 
 const applyMoveAction = ({room, action, roomId, actionId, now}) => {
-  if (!room || room.status !== 'playing') {
-    return {ok: false, reason: 'room-not-playing'};
+  const roomAvailabilityReason = getRoomActionAvailabilityReason(room);
+  if (roomAvailabilityReason) {
+    return {ok: false, reason: roomAvailabilityReason};
   }
 
   const expectedUid = resolveActionPlayer(room, action.playerNo);

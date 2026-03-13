@@ -18,6 +18,8 @@ import {db} from './config';
 
 const ROOM_CODE_LENGTH = 6;
 const MAX_ROOM_CODE_ATTEMPTS = 12;
+const ONLINE_TURN_TIMEOUT_MS = 15000;
+const ROOM_ACTION_WAIT_MS = 12000;
 
 const createRoomError = (code, message) => {
   const error = new Error(message);
@@ -50,9 +52,146 @@ const buildInitialOnlineGameState = () => ({
   currentPositions: initialState.currentPositions,
   winner: initialState.winner,
   fireworks: initialState.fireworks,
-  turnDeadlineAt: Date.now() + 15000,
+  turnDeadlineAt: Date.now() + ONLINE_TURN_TIMEOUT_MS,
   lastAction: null,
 });
+
+const isRoomReadyForAction = room =>
+  room?.status === 'playing' &&
+  Boolean(room?.players?.player1?.uid) &&
+  Boolean(room?.players?.player2?.uid);
+
+const assertRoomReadyForAction = async ({roomId, uid, playerNo}) => {
+  const room = await getRoom(roomId);
+
+  if (!room) {
+    throw createRoomError(
+      'room/unavailable',
+      'Room code is invalid or the room no longer exists.',
+    );
+  }
+
+  if (!isRoomReadyForAction(room)) {
+    throw createRoomError(
+      'room/not-ready',
+      'Wait for the opponent to join before sending online moves.',
+    );
+  }
+
+  if (room?.players?.[`player${playerNo}`]?.uid !== uid) {
+    throw createRoomError(
+      'room/forbidden',
+      'This device is not the active owner of that player slot in the room.',
+    );
+  }
+
+  if (room?.game?.winner != null) {
+    throw createRoomError(
+      'room/finished',
+      'This room already has a winner.',
+    );
+  }
+};
+
+const createRoomActionError = reason => {
+  switch (reason) {
+    case 'room-waiting':
+      return createRoomError(
+        'room/not-ready',
+        'Wait for the opponent to join before starting the match.',
+      );
+    case 'room-not-found':
+      return createRoomError(
+        'room/unavailable',
+        'Room code is invalid or the room no longer exists.',
+      );
+    case 'room-not-playing':
+      return createRoomError(
+        'room/unavailable',
+        'Room code is invalid or the room is no longer available.',
+      );
+    case 'player-mismatch':
+      return createRoomError(
+        'room/forbidden',
+        'This player is not allowed to control the room turn.',
+      );
+    case 'game-finished':
+      return createRoomError(
+        'room/finished',
+        'This room already has a winner.',
+      );
+    case 'not-your-turn':
+      return createRoomError(
+        'room/not-your-turn',
+        'It is not your turn yet.',
+      );
+    case 'move-already-pending':
+    case 'roll-required':
+      return createRoomError(
+        'room/already-rolled',
+        'This turn already has a pending piece move.',
+      );
+    case 'piece-required':
+    case 'piece-not-found':
+    case 'piece-cannot-move':
+      return createRoomError(
+        'room/invalid-piece',
+        'That token cannot be moved right now.',
+      );
+    default:
+      return createRoomError(
+        'room/action-rejected',
+        'The room action could not be completed.',
+      );
+  }
+};
+
+const waitForRoomActionResult = actionRef =>
+  new Promise((resolve, reject) => {
+    let unsubscribe = null;
+
+    const timer = setTimeout(() => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+
+      reject(
+        createRoomError(
+          'room/action-timeout',
+          'Server did not process the online room action in time. Deploy Firebase Functions and database rules, then try again.',
+        ),
+      );
+    }, ROOM_ACTION_WAIT_MS);
+
+    unsubscribe = onValue(
+      actionRef,
+      snapshot => {
+        if (!snapshot.exists()) {
+          return;
+        }
+
+        const action = snapshot.val();
+
+        if (action?.status === 'processed') {
+          clearTimeout(timer);
+          unsubscribe?.();
+          resolve(action.result ?? null);
+          return;
+        }
+
+        if (action?.status === 'rejected') {
+          clearTimeout(timer);
+          unsubscribe?.();
+          reject(createRoomActionError(action.error));
+        }
+      },
+      error => {
+        clearTimeout(timer);
+        unsubscribe?.();
+        reject(error);
+      },
+    );
+  });
 
 const buildWaitingRoomState = ({uid, name}) => ({
   status: 'waiting',
@@ -115,7 +254,7 @@ export const joinRoom = async ({roomId, uid, name}) => {
       },
       game: {
         ...currentRoom.game,
-        turnDeadlineAt: Date.now() + 15000,
+        turnDeadlineAt: Date.now() + ONLINE_TURN_TIMEOUT_MS,
       },
     };
   });
@@ -211,6 +350,12 @@ export const setPlayerConnected = async ({roomId, playerNo, connected}) => {
 };
 
 export const queueRoomAction = async ({roomId, uid, playerNo, type, payload = {}}) => {
+  await assertRoomReadyForAction({
+    roomId,
+    uid,
+    playerNo,
+  });
+
   const actionRef = push(ref(db, `roomActions/${roomId}`));
 
   await set(actionRef, {
@@ -222,5 +367,5 @@ export const queueRoomAction = async ({roomId, uid, playerNo, type, payload = {}
     createdAt: serverTimestamp(),
   });
 
-  return actionRef.key;
+  return waitForRoomActionResult(actionRef);
 };

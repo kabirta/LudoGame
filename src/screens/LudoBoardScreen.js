@@ -233,8 +233,14 @@ const LudoBoardScreen = ({route}) => {
   const boardSize = Math.min(deviceWidth * 0.965, deviceHeight * 0.59);
   const firstMoverAvatarSize = Math.min(deviceWidth * 0.15, 70);
   const footerNameWidth = Math.min(deviceWidth * 0.42, 80);
-  const isRoomPlaying = !isOnlineMode || room?.status === 'playing';
-  const isWaitingForOpponent = isOnlineMode && (!roomLoaded || !isRoomPlaying);
+  const isRoomReadyForActions =
+    !isOnlineMode ||
+    (
+      room?.status === 'playing' &&
+      Boolean(room?.players?.player1?.uid) &&
+      Boolean(room?.players?.player2?.uid)
+    );
+  const isWaitingForOpponent = isOnlineMode && (!roomLoaded || !isRoomReadyForActions);
   const topPlayerName = room?.players?.player2?.name ?? 'Player 2';
   const bottomPlayerName = room?.players?.player1?.name ?? 'Player 1';
   const timerLabel = isOnlineMode ? 'LIVE' : formatTime(seconds);
@@ -264,7 +270,7 @@ const LudoBoardScreen = ({route}) => {
   }, []);
 
   const enqueueOnlineRoomAction = useCallback(async (type, payload = {}) => {
-    if (!isOnlineMode || !roomId || !playerNo || room?.status !== 'playing') {
+    if (!isOnlineMode || !roomId || !playerNo || !isRoomReadyForActions) {
       return;
     }
 
@@ -292,7 +298,7 @@ const LudoBoardScreen = ({route}) => {
         payload,
       });
     } catch (error) {
-      console.error('Failed to queue online room action.', error);
+      console.error('Failed to apply online room action.', error);
       Alert.alert(
         'Action failed',
         getFirebaseSetupErrorMessage(error),
@@ -300,7 +306,7 @@ const LudoBoardScreen = ({route}) => {
     } finally {
       setIsQueuingRoomAction(false);
     }
-  }, [isOnlineMode, isQueuingRoomAction, playerNo, room?.status, roomId]);
+  }, [isOnlineMode, isQueuingRoomAction, isRoomReadyForActions, playerNo, roomId]);
 
   const handleOnlineDicePress = useCallback(async () => {
     if (isOnlineMode && room?.game?.chancePlayer !== playerNo) {

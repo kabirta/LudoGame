@@ -24,8 +24,40 @@ export const getFirebaseSetupErrorMessage = error => {
     return 'Room code is invalid or that room is no longer waiting for an opponent.';
   }
 
+  if (code === 'room/not-ready') {
+    return 'Wait for the opponent to fully join and for the board to unlock before rolling or moving a token.';
+  }
+
   if (code === 'room/full') {
     return 'That room already has two players or the match has already started.';
+  }
+
+  if (code === 'room/not-your-turn') {
+    return 'It is not your turn yet. Wait for the opponent turn to finish.';
+  }
+
+  if (code === 'room/already-rolled') {
+    return 'This turn already has a dice result. Move one of the highlighted tokens.';
+  }
+
+  if (code === 'room/invalid-piece') {
+    return 'That token cannot be moved right now. Choose one of the active tokens.';
+  }
+
+  if (code === 'room/forbidden') {
+    return 'This device is not the active owner of that player slot in the room.';
+  }
+
+  if (code === 'room/action-rejected') {
+    return 'The server rejected this online action. Make sure both players are on the same app build, then leave and create a fresh room.';
+  }
+
+  if (code === 'room/finished') {
+    return 'This online room already has a winner.';
+  }
+
+  if (code === 'room/action-timeout') {
+    return 'The online action was queued but the server did not process it in time. Deploy Firebase Functions and database rules, then try again.';
   }
 
   if (code === 'profile/name-change-limit-reached') {

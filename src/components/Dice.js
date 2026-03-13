@@ -63,7 +63,14 @@ const Dice = React.memo(({
 
   const handleDicePress = async () => {
     if (typeof onPress === 'function') {
-      await onPress({player});
+      playSound('dice_roll');
+      setDiceRolling(true);
+      try {
+        await onPress({player});
+        await delay(250);
+      } finally {
+        setDiceRolling(false);
+      }
       return;
     }
 
